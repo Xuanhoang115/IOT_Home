@@ -10,7 +10,14 @@ import {
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
+  const handleLogin = () => {
+    if (email === 'admin' && password === '123456') {
+      navigation.replace('Home');
+    }
+    else {
+      Alert.alert('đăng nhập thất bại');
+    }
+  };
   return (
     <View style={styles.container}>
 
