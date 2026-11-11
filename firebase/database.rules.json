@@ -1,0 +1,74 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "userHomes": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "homes": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false
+      }
+    },
+    "rooms": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false
+      }
+    },
+    "devices": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false
+      }
+    },
+    "latestSensors": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false
+      }
+    },
+    "sensorReadings": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false,
+        ".indexOn": ["timestamp"]
+      }
+    },
+    "commands": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false,
+        ".indexOn": ["createdAt", "status"]
+      }
+    },
+    "alerts": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false,
+        ".indexOn": ["timestamp", "severity"]
+      }
+    },
+    "activityLogs": {
+      "$homeId": {
+        ".read": "auth != null && root.child('userHomes').child(auth.uid).child($homeId).val() === true",
+        ".write": false,
+        ".indexOn": ["timestamp", "deviceId"]
+      }
+    },
+    "notificationTokens": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

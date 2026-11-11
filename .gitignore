@@ -39,3 +39,17 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+
+# Smart Home IoT 2026 - Secrets & Build Artifacts (DO NOT COMMIT)
+.env
+.env.*
+!.env.example
+*serviceAccountKey*.json
+firebase-adminsdk-*.json
+firmware/**/secrets.h
+google-services.json
+GoogleService-Info.plist
+.pio/
+build/
+coverage/

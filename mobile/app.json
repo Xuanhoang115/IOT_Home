@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Smart Home IoT 2026",
+    "slug": "smart-home-iot-2026",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "../assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "../assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2850E8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "vn.edu.smarthome2026"
+    },
+    "android": {
+      "package": "vn.edu.smarthome2026",
+      "adaptiveIcon": {
+        "foregroundImage": "../assets/adaptive-icon.png",
+        "backgroundColor": "#2850E8"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "../assets/favicon.png"
+    }
+  }
+}

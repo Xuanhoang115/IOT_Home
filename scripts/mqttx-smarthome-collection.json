@@ -1,0 +1,136 @@
+{
+  "name": "SmartHome IoT 2026 - MQTTX Test Suite (home1)",
+  "version": "1.0.0",
+  "description": "Bộ kịch bản kiểm thử 14 MQTT Topics, QoS, Retain và LWT cho HiveMQ Cloud (TLS :8883)",
+  "connections": [
+    {
+      "name": "SmartHome-HiveMQ-Tester",
+      "clientId": "mqttx_tester_home1",
+      "protocol": "mqtts",
+      "host": "<YOUR_HIVEMQ_CLUSTER_HOST>",
+      "port": 8883,
+      "username": "smarthome_tester",
+      "password": "<YOUR_MQTT_PASSWORD>",
+      "ssl": true,
+      "rejectUnauthorized": true,
+      "mqttVersion": "5.0",
+      "keepalive": 30,
+      "clean": true,
+      "subscriptions": [
+        {
+          "topic": "smarthome/home1/#",
+          "qos": 1,
+          "alias": "All home1 topics"
+        },
+        {
+          "topic": "smarthome/home1/+/state",
+          "qos": 1,
+          "alias": "Device reportedState ACKs"
+        },
+        {
+          "topic": "smarthome/home1/sensors/#",
+          "qos": 1,
+          "alias": "All Sensors (Temp/Hum/Motion/Smoke)"
+        },
+        {
+          "topic": "smarthome/home1/alerts",
+          "qos": 1,
+          "alias": "Emergency Alerts"
+        },
+        {
+          "topic": "smarthome/home1/esp32/status",
+          "qos": 1,
+          "alias": "ESP32 Online / LWT Status"
+        }
+      ],
+      "messages": [
+        {
+          "name": "1. Turn ON Living Room Light (light1/set)",
+          "topic": "smarthome/home1/light1/set",
+          "qos": 1,
+          "retain": false,
+          "payload": {
+            "requestId": "req_mqttx_light1_on_001",
+            "homeId": "home1",
+            "deviceId": "light1",
+            "desiredState": {
+              "power": "ON",
+              "mode": "MANUAL"
+            },
+            "requestedBy": "mqttx_tester",
+            "timestamp": 1762855200000
+          }
+        },
+        {
+          "name": "2. Turn OFF Bedroom Light (light2/set)",
+          "topic": "smarthome/home1/light2/set",
+          "qos": 1,
+          "retain": false,
+          "payload": {
+            "requestId": "req_mqttx_light2_off_001",
+            "homeId": "home1",
+            "deviceId": "light2",
+            "desiredState": {
+              "power": "OFF",
+              "mode": "MANUAL"
+            },
+            "requestedBy": "mqttx_tester",
+            "timestamp": 1762855201000
+          }
+        },
+        {
+          "name": "3. Set Fan to AUTO Mode (fan1/set)",
+          "topic": "smarthome/home1/fan1/set",
+          "qos": 1,
+          "retain": false,
+          "payload": {
+            "requestId": "req_mqttx_fan1_auto_001",
+            "homeId": "home1",
+            "deviceId": "fan1",
+            "desiredState": {
+              "power": "ON",
+              "mode": "AUTO"
+            },
+            "requestedBy": "mqttx_tester",
+            "timestamp": 1762855202000
+          }
+        },
+        {
+          "name": "4. Open Servo Door 90 deg (door1/set)",
+          "topic": "smarthome/home1/door1/set",
+          "qos": 1,
+          "retain": false,
+          "payload": {
+            "requestId": "req_mqttx_door1_open_001",
+            "homeId": "home1",
+            "deviceId": "door1",
+            "desiredState": {
+              "doorState": "OPEN",
+              "targetAngle": 90
+            },
+            "requestedBy": "mqttx_tester",
+            "timestamp": 1762855205000
+          }
+        },
+        {
+          "name": "5. Simulate Smoke Alert (alerts)",
+          "topic": "smarthome/home1/alerts",
+          "qos": 1,
+          "retain": false,
+          "payload": {
+            "alertId": "alt_mqttx_smoke_001",
+            "homeId": "home1",
+            "type": "SMOKE_DETECTED",
+            "severity": "CRITICAL",
+            "deviceId": "mq2_kitchen",
+            "roomId": "kitchen",
+            "message": "Cảnh báo! Nồng độ khói/khí tại Phòng bếp vượt ngưỡng an toàn (ADC: 2650/2200).",
+            "buzzerTriggered": true,
+            "autoFanTriggered": true,
+            "timestamp": 1762855220000
+          }
+        }
+      ]
+    }
+  ]
+}

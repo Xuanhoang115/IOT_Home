@@ -1,6 +1,6 @@
 import React from 'react';
-import AppNavigator from './src/navigation/AppNavigator';
+import MobileApp from './mobile/App';
 
 export default function App() {
-  return <AppNavigator />;
+  return <MobileApp />;
 }
