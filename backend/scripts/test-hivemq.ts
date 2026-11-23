@@ -2,7 +2,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import mqtt from 'mqtt';
 
-dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const host = process.env.HIVEMQ_HOST?.trim() || '';
 const port = Number(process.env.HIVEMQ_PORT || 8883);

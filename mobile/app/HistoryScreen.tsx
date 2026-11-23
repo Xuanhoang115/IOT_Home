@@ -4,15 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
+import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
+import {
+  NEU_COLORS,
+  neuShadowSubtle,
+  RADIUS,
+  SPACING,
+  TYPOGRAPHY,
+} from '../styles/neumorphicTheme';
 import { CommandSource, RootStackParamList } from '../types/smarthome';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'History'>;
 
 const SOURCE_LABELS: Record<CommandSource, string> = {
-  REMOTE_COMMAND: '📱 Điều khiển từ App',
+  REMOTE_COMMAND: '📱 Điều khiển từ xa',
   PHYSICAL_BUTTON: '🔘 Nút nhấn vật lý',
-  AUTO_RULE: '🤖 Tự động (Auto Rule)',
+  AUTO_RULE: '🤖 Tự động (AUTO)',
   BOOT_SYNC: '🔄 Đồng bộ khởi động',
 };
 
@@ -24,6 +33,7 @@ export default function HistoryScreen({ navigation }: Props) {
     esp32Status,
     systemMode,
     alerts,
+    toggleSystemMode,
   } = useSmartHome();
 
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
@@ -32,12 +42,17 @@ export default function HistoryScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="Lịch Sử Hoạt Động"
-        subtitle="Ghi nhận mọi thao tác từ App, Nút nhấn vật lý và Quy tắc Auto"
+        subtitle="Ghi nhận mọi thao tác từ Ứng dụng, Nút vật lý và Chế độ Tự động"
         temperature={latestSensors.temperature.value}
         humidity={latestSensors.humidity.value}
         esp32Status={esp32Status}
         systemMode={systemMode}
         unreadAlertCount={unreadAlerts}
+        onToggleMode={() =>
+          toggleSystemMode(systemMode === 'MANUAL' ? 'AUTO' : 'MANUAL')
+        }
+        onPressAlerts={() => navigation.navigate('Alerts')}
+        onPressSettings={() => navigation.navigate('Settings')}
       />
 
       <ScrollView
@@ -45,58 +60,80 @@ export default function HistoryScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>
-          Nhật Ký Thực Thi Phần Cứng (`activityLogs`)
-        </Text>
+        <ResponsiveContainer>
+          <Text style={[TYPOGRAPHY.h2, styles.sectionTitle]}>
+            Nhật Ký Thực Thi Phần Cứng ({activityLogs.length})
+          </Text>
 
-        {activityLogs.map((log) => (
-          <View key={log.id} style={styles.logCard}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.deviceTag}>Thiết bị: {log.deviceId}</Text>
-              <Text style={styles.timeText}>
-                {new Date(log.timestamp).toLocaleTimeString()}
-              </Text>
-            </View>
-            <Text style={styles.actionText}>{log.action}</Text>
-            <Text style={styles.sourceText}>
-              Nguồn: {SOURCE_LABELS[log.source] || log.source} • Bởi:{' '}
-              {log.actorUid || 'system'}
-            </Text>
-          </View>
-        ))}
-
-        {commands.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { marginTop: 14 }]}>
-              Trạng Thái Lệnh Gần Đây (`commands`)
-            </Text>
-            {commands.slice(0, 10).map((cmd) => (
-              <View key={cmd.requestId} style={styles.logCard}>
+          {activityLogs.length === 0 ? (
+            <StateView
+              variant="empty"
+              icon="📋"
+              title="Chưa có lịch sử hoạt động"
+              description="Khi bạn bật/tắt đèn, bấm nút vật lý trên mạch hoặc chuyển chế độ, nhật ký sẽ xuất hiện tại đây."
+            />
+          ) : (
+            activityLogs.map((log) => (
+              <View key={log.id} style={[styles.logCard, neuShadowSubtle]}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.deviceTag}>{cmd.deviceId}</Text>
-                  <Text
-                    style={[
-                      styles.statusBadge,
-                      cmd.status === 'ACKED'
-                        ? styles.statusAcked
-                        : cmd.status === 'TIMEOUT'
-                        ? styles.statusTimeout
-                        : styles.statusPending,
-                    ]}
-                  >
-                    {cmd.status}
+                  <Text style={styles.deviceTag}>{log.deviceId.toUpperCase()}</Text>
+                  <Text style={TYPOGRAPHY.caption}>
+                    {new Date(log.timestamp).toLocaleTimeString()}
                   </Text>
                 </View>
-                <Text style={styles.sourceText}>
-                  Mã lệnh: {cmd.requestId.slice(0, 18)}...
+                <Text style={[TYPOGRAPHY.h3, styles.actionText]}>{log.action}</Text>
+                <Text style={[TYPOGRAPHY.caption, styles.sourceText]}>
+                  {SOURCE_LABELS[log.source] || log.source} • Bởi:{' '}
+                  {log.actorUid || 'Hệ thống'}
                 </Text>
-                {cmd.errorReason && (
-                  <Text style={styles.errorText}>{cmd.errorReason}</Text>
-                )}
               </View>
-            ))}
-          </>
-        )}
+            ))
+          )}
+
+          {commands.length > 0 && (
+            <>
+              <Text style={[TYPOGRAPHY.h2, styles.sectionTitle, { marginTop: SPACING.lg }]}>
+                Trạng Thái Lệnh Gần Đây ({Math.min(commands.length, 10)})
+              </Text>
+              {commands.slice(0, 10).map((cmd) => (
+                <View key={cmd.requestId} style={[styles.logCard, neuShadowSubtle]}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.deviceTag}>{cmd.deviceId.toUpperCase()}</Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        cmd.status === 'ACKED'
+                          ? styles.statusAcked
+                          : cmd.status === 'TIMEOUT' || cmd.status === 'FAILED'
+                          ? styles.statusTimeout
+                          : styles.statusPending,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          cmd.status === 'ACKED'
+                            ? styles.textAcked
+                            : cmd.status === 'TIMEOUT' || cmd.status === 'FAILED'
+                            ? styles.textTimeout
+                            : styles.textPending,
+                        ]}
+                      >
+                        {cmd.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[TYPOGRAPHY.caption, styles.sourceText]}>
+                    Mã lệnh: {cmd.requestId.slice(0, 20)}...
+                  </Text>
+                  {cmd.errorReason ? (
+                    <Text style={styles.errorText}>⚠️ {cmd.errorReason}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </>
+          )}
+        </ResponsiveContainer>
       </ScrollView>
 
       <BottomNav
@@ -111,28 +148,26 @@ export default function HistoryScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EEF3FA',
+    backgroundColor: NEU_COLORS.bg,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 24,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxl,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1D2939',
-    marginBottom: 10,
+    marginBottom: SPACING.md,
   },
   logCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 13,
-    marginBottom: 10,
+    backgroundColor: NEU_COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md + 2,
+    marginBottom: SPACING.sm + 2,
     borderWidth: 1,
-    borderColor: '#E4E9F2',
+    borderColor: NEU_COLORS.borderSubtle,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -142,45 +177,46 @@ const styles = StyleSheet.create({
   deviceTag: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#2850E8',
-  },
-  timeText: {
-    fontSize: 11,
-    color: '#667085',
+    color: NEU_COLORS.primary,
+    letterSpacing: 0.4,
   },
   actionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1D2939',
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   sourceText: {
-    fontSize: 11,
-    color: '#475467',
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   statusBadge: {
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  statusBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
   },
   statusAcked: {
-    backgroundColor: '#D1FADF',
-    color: '#027A48',
+    backgroundColor: NEU_COLORS.pastelGreen,
+  },
+  textAcked: {
+    color: '#15803D',
   },
   statusTimeout: {
-    backgroundColor: '#FEE4E2',
-    color: '#B42318',
+    backgroundColor: NEU_COLORS.pastelDanger,
+  },
+  textTimeout: {
+    color: NEU_COLORS.danger,
   },
   statusPending: {
-    backgroundColor: '#FEF0C7',
-    color: '#B54708',
+    backgroundColor: NEU_COLORS.pastelWarning,
+  },
+  textPending: {
+    color: NEU_COLORS.warning,
   },
   errorText: {
-    fontSize: 11,
-    color: '#D92D20',
-    marginTop: 4,
+    fontSize: 12,
+    color: NEU_COLORS.danger,
+    marginTop: 6,
+    fontWeight: '600',
   },
 });

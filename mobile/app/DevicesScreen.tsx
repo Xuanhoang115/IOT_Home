@@ -13,6 +13,8 @@ import CategoryTabs, { CategoryOption } from '../components/CategoryTabs';
 import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
+import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import { RoomId, RootStackParamList } from '../types/smarthome';
 
@@ -73,6 +75,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContainer>
         <SearchBar value={search} onChangeText={setSearch} />
 
         <CategoryTabs
@@ -107,11 +110,17 @@ export default function DevicesScreen({ navigation, route }: Props) {
         </View>
 
         {filteredDevices.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>
-              Không có thiết bị điều khiển trực tiếp trong khu vực này.
-            </Text>
-          </View>
+          <StateView
+            variant="empty"
+            icon="🔍"
+            title="Không tìm thấy thiết bị phù hợp"
+            description="Khu vực này chưa có thiết bị điều khiển hoặc từ khóa tìm kiếm chưa khớp."
+            actionLabel="Xem tất cả thiết bị"
+            onAction={() => {
+              setSelectedRoom('ALL');
+              setSearch('');
+            }}
+          />
         ) : (
           <View style={styles.grid}>
             {filteredDevices.map((device) => (
@@ -126,6 +135,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
             ))}
           </View>
         )}
+        </ResponsiveContainer>
       </ScrollView>
 
       <BottomNav
@@ -140,7 +150,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EEF3FA',
+    backgroundColor: '#F2F4F8',
   },
   scroll: {
     flex: 1,
@@ -151,14 +161,14 @@ const styles = StyleSheet.create({
   },
   testBar: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 18,
+    padding: 14,
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#E4E9F2',
+    borderColor: '#FFFFFF',
   },
   testInfo: {
     flex: 1,
@@ -167,18 +177,18 @@ const styles = StyleSheet.create({
   testTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1D2939',
+    color: '#1E2235',
   },
   testSub: {
     fontSize: 11,
-    color: '#667085',
+    color: '#8E95A9',
     marginTop: 2,
   },
   simBtn: {
-    backgroundColor: '#2850E8',
-    paddingHorizontal: 10,
+    backgroundColor: '#9B51E0',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   simBtnOffline: {
     backgroundColor: '#D92D20',

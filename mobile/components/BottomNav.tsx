@@ -1,5 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  LAYOUT,
+  NEU_COLORS,
+  neuGlowPink,
+  neuShadow,
+  SPACING,
+} from '../styles/neumorphicTheme';
 import { RootStackParamList } from '../types/smarthome';
 
 interface BottomNavProps {
@@ -8,96 +15,261 @@ interface BottomNavProps {
   unreadAlertCount?: number;
 }
 
-const NAV_ITEMS: Array<{
-  key: keyof RootStackParamList;
+interface NavTabItemProps {
   label: string;
   icon: string;
-}> = [
-  { key: 'Dashboard', label: 'Trang chủ', icon: '🏠' },
-  { key: 'Devices', label: 'Thiết bị', icon: '🎛️' },
-  { key: 'Sensors', label: 'Cảm biến', icon: '📡' },
-  { key: 'Alerts', label: 'Cảnh báo', icon: '🚨' },
-  { key: 'History', label: 'Lịch sử', icon: '🕒' },
-  { key: 'Settings', label: 'Cài đặt', icon: '⚙️' },
-];
+  active: boolean;
+  badgeCount?: number;
+  onPress: () => void;
+}
 
-export default function BottomNav({
+function NavTabItem({
+  label,
+  icon,
+  active,
+  badgeCount = 0,
+  onPress,
+}: NavTabItemProps) {
+  return (
+    <TouchableOpacity
+      style={styles.wingTab}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+    >
+      <View style={styles.iconWrap}>
+        <Text style={[styles.wingIcon, active && styles.wingIconActive]}>
+          {icon}
+        </Text>
+        {badgeCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text style={[styles.wingLabel, active && styles.wingLabelActive]}>
+        {label}
+      </Text>
+      {active && <View style={styles.activeIndicator} />}
+    </TouchableOpacity>
+  );
+}
+
+function BottomNav({
   activeTab,
   onNavigate,
   unreadAlertCount = 0,
 }: BottomNavProps) {
+  const isSensorsActive = activeTab === 'Sensors';
+
   return (
-    <View style={styles.container}>
-      {NAV_ITEMS.map((item) => {
-        const isActive = activeTab === item.key;
-        return (
+    <View style={styles.shell}>
+      <View style={styles.outerWrap}>
+        <View style={styles.leftWing}>
+          <NavTabItem
+            label="Trang chủ"
+            icon="⌂"
+            active={activeTab === 'Dashboard'}
+            onPress={() => onNavigate('Dashboard')}
+          />
+          <NavTabItem
+            label="Thiết bị"
+            icon="⊞"
+            active={activeTab === 'Devices'}
+            onPress={() => onNavigate('Devices')}
+          />
+        </View>
+
+        <View style={styles.centerCutout}>
           <TouchableOpacity
-            key={item.key}
-            style={styles.tab}
-            onPress={() => onNavigate(item.key)}
+            style={[
+              styles.centerOrbOuter,
+              neuShadow,
+              isSensorsActive && neuGlowPink,
+            ]}
+            onPress={() => onNavigate('Sensors')}
+            activeOpacity={0.85}
+            accessibilityRole="tab"
+            accessibilityLabel="Cảm biến và nhiệt độ"
+            accessibilityState={{ selected: isSensorsActive }}
           >
-            <View style={styles.iconWrap}>
-              <Text style={styles.icon}>{item.icon}</Text>
-              {item.key === 'Alerts' && unreadAlertCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadAlertCount}</Text>
-                </View>
-              )}
+            <View
+              style={[
+                styles.centerOrbInner,
+                isSensorsActive && styles.centerOrbInnerActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.centerMicIcon,
+                  isSensorsActive && styles.centerMicIconActive,
+                ]}
+              >
+                🌡️
+              </Text>
             </View>
-            <Text style={[styles.label, isActive && styles.labelActive]}>
-              {item.label}
-            </Text>
           </TouchableOpacity>
-        );
-      })}
+        </View>
+
+        <View style={styles.rightWing}>
+          <NavTabItem
+            label="Cảnh báo"
+            icon="🔔"
+            active={activeTab === 'Alerts'}
+            badgeCount={unreadAlertCount}
+            onPress={() => onNavigate('Alerts')}
+          />
+          <NavTabItem
+            label="Lịch sử"
+            icon="↺"
+            active={activeTab === 'History'}
+            onPress={() => onNavigate('History')}
+          />
+          <NavTabItem
+            label="Cài đặt"
+            icon="👤"
+            active={activeTab === 'Settings'}
+            onPress={() => onNavigate('Settings')}
+          />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  shell: {
+    backgroundColor: NEU_COLORS.bg,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E4E9F2',
+    paddingHorizontal: SPACING.xs,
   },
-  tab: {
+  outerWrap: {
+    width: '100%',
+    maxWidth: LAYOUT.maxBottomNavWidth,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: 6,
+    height: 78,
+    position: 'relative',
+  },
+  leftWing: {
+    flex: 1,
+    height: 64,
+    backgroundColor: NEU_COLORS.navy,
+    borderTopRightRadius: 32,
+    borderTopLeftRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingRight: 10,
+  },
+  rightWing: {
+    flex: 1.35,
+    height: 64,
+    backgroundColor: NEU_COLORS.navy,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingLeft: 10,
+  },
+  centerCutout: {
+    width: 74,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 12,
+    zIndex: 10,
+  },
+  centerOrbOuter: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F6F8FC',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  centerOrbInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EFE6FD',
+  },
+  centerOrbInnerActive: {
+    backgroundColor: NEU_COLORS.pink,
+    borderColor: NEU_COLORS.primary,
+  },
+  centerMicIcon: {
+    fontSize: 20,
+    color: NEU_COLORS.pink,
+  },
+  centerMicIconActive: {
+    color: '#FFFFFF',
+  },
+  wingTab: {
+    minWidth: 48,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   iconWrap: {
     position: 'relative',
   },
-  icon: {
+  wingIcon: {
     fontSize: 18,
+    color: NEU_COLORS.textOnDarkMuted,
+    fontWeight: '700',
+  },
+  wingIconActive: {
+    color: '#FFFFFF',
+  },
+  wingLabel: {
+    fontSize: 11,
+    color: NEU_COLORS.textOnDarkMuted,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  wingLabelActive: {
+    color: '#F472B6',
+    fontWeight: '800',
+  },
+  activeIndicator: {
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#F472B6',
+    marginTop: 3,
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: '#D92D20',
-    borderRadius: 8,
-    minWidth: 15,
-    height: 15,
+    top: -5,
+    right: -10,
+    backgroundColor: NEU_COLORS.coral,
+    borderRadius: 9,
+    minWidth: 17,
+    height: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
   },
-  label: {
-    fontSize: 10,
-    color: '#667085',
-    marginTop: 2,
-  },
-  labelActive: {
-    color: '#2850E8',
-    fontWeight: '700',
-  },
 });
+
+export default React.memo(BottomNav);

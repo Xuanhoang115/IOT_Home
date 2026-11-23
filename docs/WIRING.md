@@ -24,6 +24,9 @@ Trước khi đấu dây, nhóm bắt buộc tuân thủ các quy tắc phần c
 | **Cảm biến khói MQ-2** | Phòng bếp | Chân `AO` *(qua cầu phân áp)* | **`GPIO 34` (ADC1_CH6)** | `5V Ngoài` | **Bắt buộc qua cầu phân áp 2 điện trở `10kΩ`** trước khi vào `GPIO 34` |
 | **Nút nhấn 1 (`BTN_DOOR`)** | Cửa chính | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 18`** | `INPUT_PULLUP` | Nhấn tay để đóng/mở cửa tại mô hình (chống rung phần mềm `50ms`) |
 | **Nút nhấn 2 (`BTN_LIGHT`)** | Phòng khách | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 19`** | `INPUT_PULLUP` | Nhấn tay bật/tắt đèn hoặc tắt còi báo động khẩn cấp |
+| **Màn hình OLED 0.96" I2C** | Trung tâm nhà | `SDA` & `SCK` (`GM009605v4.3`) | **`GPIO 21` (SDA), `GPIO 22` (SCK)** | **`3.3V`** | Giao tiếp I2C `100kHz`, bộ đệm `oledLineCache` 4 dòng không gây trễ MQTT |
+| **Cảm biến từ cửa `MC-38`** | Cửa chính | 1 dây vào GPIO, 1 dây xuống `GND` | **`GPIO 32`** | `INPUT_PULLUP` | Công tắc từ Reed Switch xác thực cửa đã khép kín (`positionVerified`) |
+| **Cảm biến lửa `Flame Sensor`** | Phòng bếp | Chân `DO` (Module đỏ `FE-01`) | **`GPIO 33`** | `3.3V` / `5V` | Tự động ghi nhận mức nghỉ `flameIdleLevel`, kích còi Buzzer ngay khi phát hiện lửa |
 
 ---
 

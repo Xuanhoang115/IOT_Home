@@ -19,6 +19,7 @@ export type MqttPublishCommandFn = (
 
 export class CommandService {
   private pendingTimers = new Map<string, NodeJS.Timeout>();
+  private ackWaiters = new Map<string, () => void>();
   private processedStateAckIds = new Set<string>();
   private maxProcessedCacheSize = 200;
   private publishFn: MqttPublishCommandFn;
@@ -44,6 +45,10 @@ export class CommandService {
       clearTimeout(timer);
     }
     this.pendingTimers.clear();
+    for (const resolve of this.ackWaiters.values()) {
+      resolve();
+    }
+    this.ackWaiters.clear();
     this.processedStateAckIds.clear();
   }
 
@@ -95,6 +100,11 @@ export class CommandService {
           errorReason: `ESP32 không phản hồi xác nhận trong ${timeoutMs}ms`,
         });
         await this.store.saveDeviceCommandStatus(homeId, deviceId, 'TIMEOUT', timeoutTs);
+        await this.store.updateEsp32Status(homeId, {
+          online: false,
+          lastSeen: timeoutTs,
+          reason: 'command_timeout_no_ack',
+        });
       }
     }, timeoutMs);
 
@@ -112,6 +122,27 @@ export class CommandService {
     };
 
     await this.publishFn(topic, mqttPayload, { qos: 1, retain: false });
+
+    // Chờ tối đa 220ms nếu ACK về kịp thì trả luôn, nếu chưa về thì trả ngay để Web không bị khựng
+    if (env.NODE_ENV !== 'test') {
+      await new Promise<void>((resolve) => {
+        const graceTimer = setTimeout(() => {
+          this.ackWaiters.delete(requestId);
+          resolve();
+        }, 220);
+        this.ackWaiters.set(requestId, () => {
+          clearTimeout(graceTimer);
+          this.ackWaiters.delete(requestId);
+          resolve();
+        });
+      });
+      const latestCmd = (await this.store.getCommand(homeId, requestId)) ?? commandRecord;
+      const latestDev = (await this.store.getDevice(homeId, deviceId)) ?? updatedDevice;
+      return {
+        command: latestCmd,
+        device: latestDev,
+      };
+    }
 
     return {
       command: commandRecord,
@@ -133,6 +164,12 @@ export class CommandService {
       this.pendingTimers.delete(requestId);
     }
 
+    await this.store.updateEsp32Status(homeId, {
+      online: true,
+      lastSeen: Date.now(),
+      reason: 'device_state_ack',
+    });
+
     const ackKey = `${requestId}:${deviceId}`;
     const alreadyProcessed = this.processedStateAckIds.has(ackKey) || isDuplicate;
 
@@ -151,6 +188,12 @@ export class CommandService {
         status: commandStatus,
         ackedAt: timestamp,
       });
+    }
+
+    // Đánh thức HTTP request đang chờ ACK để trả về ngay cho Web
+    const waiter = this.ackWaiters.get(requestId);
+    if (waiter) {
+      waiter();
     }
 
     // Chống ghi trùng lịch sử (activityLogs) khi QoS 1 gửi lặp lại cùng một bản tin state

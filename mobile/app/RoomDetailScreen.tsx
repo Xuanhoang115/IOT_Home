@@ -11,6 +11,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
+import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import { useSmartHome } from '../hooks/useSmartHome';
 import { RootStackParamList } from '../types/smarthome';
 
@@ -24,12 +25,15 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
     latestSensors,
     esp32Status,
     systemMode,
+    autoConfig,
     alerts,
     sendDeviceCommand,
     toggleSystemMode,
   } = useSmartHome();
 
   const room = rooms.find((r) => r.id === roomId) || rooms[0]!;
+  const roomIconMap: Record<string, string> = { bed: '🛏️', sofa: '🛋️', kitchen: '🍳' };
+  const roomEmoji = roomIconMap[room.icon] || room.icon;
   const roomDevices = devices.filter((d) => d.roomId === roomId);
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
 
@@ -39,7 +43,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
-        title={`${room.icon} ${room.name}`}
+        title={`${roomEmoji} ${room.name}`}
         subtitle={`Quản lý chi tiết thiết bị & cảm biến tại ${room.name}`}
         temperature={latestSensors.temperature.value}
         humidity={latestSensors.humidity.value}
@@ -57,9 +61,12 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContainer>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại trang trước"
         >
           <Text style={styles.backBtnText}>‹ Quay lại</Text>
         </TouchableOpacity>
@@ -90,62 +97,50 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Điều khiển chuyên sâu cho Quạt (Manual / Auto) */}
+        {/* Điều khiển chuyên sâu cho Quạt (Manual / Auto) - Bảo vệ bằng Mã PIN */}
         {fanDevice && (
           <View style={styles.infoCard}>
             <Text style={styles.cardTitle}>
-              🌀 Chế độ Quạt Thông Gió (`fan1` - MOSFET 5V)
+              🔒 Chế độ Quạt Thông Gió (`fan1` - Bảo mật Mã PIN)
             </Text>
             <Text style={styles.cardText}>
-              Ở chế độ AUTO, ESP32 tự bật quạt khi nhiệt độ ≥ 31.0°C và chỉ tắt
-              khi hạ xuống ≤ 29.5°C (Hysteresis chống bật/tắt liên tục).
+              Ở chế độ AUTO, hệ thống tự bật quạt khi nhiệt độ ≥{' '}
+              {autoConfig.tempThresholdHigh.toFixed(1)}°C và tắt khi ≤{' '}
+              {autoConfig.tempThresholdLow.toFixed(1)}°C. Mọi thao tác đổi chế độ
+              đều yêu cầu xác thực Mã PIN Chủ nhà.
             </Text>
             <View style={styles.btnRow}>
               <TouchableOpacity
                 style={[
                   styles.modeBtn,
-                  fanDevice.reportedState.mode === 'MANUAL' &&
-                    styles.modeBtnActive,
+                  systemMode === 'MANUAL' && styles.modeBtnActive,
                 ]}
-                onPress={() =>
-                  sendDeviceCommand('fan1', {
-                    mode: 'MANUAL',
-                    power: fanDevice.reportedState.power || 'OFF',
-                  })
-                }
+                onPress={() => toggleSystemMode('MANUAL')}
               >
                 <Text
                   style={[
                     styles.modeBtnText,
-                    fanDevice.reportedState.mode === 'MANUAL' &&
-                      styles.modeBtnTextActive,
+                    systemMode === 'MANUAL' && styles.modeBtnTextActive,
                   ]}
                 >
-                  Chế độ MANUAL
+                  🔒 Chế độ MANUAL
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.modeBtn,
-                  fanDevice.reportedState.mode === 'AUTO' &&
-                    styles.modeBtnActive,
+                  systemMode === 'AUTO' && styles.modeBtnActive,
                 ]}
-                onPress={() =>
-                  sendDeviceCommand('fan1', {
-                    mode: 'AUTO',
-                    power: fanDevice.reportedState.power || 'ON',
-                  })
-                }
+                onPress={() => toggleSystemMode('AUTO')}
               >
                 <Text
                   style={[
                     styles.modeBtnText,
-                    fanDevice.reportedState.mode === 'AUTO' &&
-                      styles.modeBtnTextActive,
+                    systemMode === 'AUTO' && styles.modeBtnTextActive,
                   ]}
                 >
-                  Chế độ AUTO
+                  🔒 Chế độ AUTO
                 </Text>
               </TouchableOpacity>
             </View>
@@ -191,6 +186,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
+        </ResponsiveContainer>
       </ScrollView>
 
       <BottomNav
@@ -205,7 +201,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EEF3FA',
+    backgroundColor: '#F2F4F8',
   },
   scroll: {
     flex: 1,
@@ -217,14 +213,14 @@ const styles = StyleSheet.create({
   backBtn: {
     alignSelf: 'flex-start',
     marginBottom: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 14,
   },
   backBtnText: {
-    color: '#2850E8',
-    fontWeight: '700',
+    color: '#9B51E0',
+    fontWeight: '800',
     fontSize: 13,
   },
   grid: {
@@ -234,27 +230,27 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 15,
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E4E9F2',
+    borderColor: '#FFFFFF',
   },
   cardTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1D2939',
+    color: '#1E2235',
     marginBottom: 6,
   },
   cardText: {
     fontSize: 12,
-    color: '#475467',
+    color: '#8E95A9',
     lineHeight: 18,
   },
   adcText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2850E8',
+    color: '#9B51E0',
     marginTop: 8,
   },
   btnRow: {
@@ -265,12 +261,12 @@ const styles = StyleSheet.create({
   modeBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F2F4F7',
+    borderRadius: 14,
+    backgroundColor: '#F2F4F8',
     alignItems: 'center',
   },
   modeBtnActive: {
-    backgroundColor: '#2850E8',
+    backgroundColor: '#9B51E0',
   },
   modeBtnText: {
     fontSize: 12,

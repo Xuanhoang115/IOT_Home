@@ -136,7 +136,7 @@ export class SensorAndAlertService {
   public async handleEsp32Status(
     payload: z.infer<typeof mqttEsp32StatusSchema>
   ): Promise<void> {
-    const now = payload.timestamp > 0 ? payload.timestamp : Date.now();
+    const now = Date.now();
     await this.store.updateEsp32Status(payload.homeId, {
       online: payload.online,
       lastSeen: now,
@@ -162,12 +162,32 @@ export class SensorAndAlertService {
     }
   }
 
+  public async touchEsp32Live(homeId: string): Promise<void> {
+    await this.store.updateEsp32Status(homeId, {
+      online: true,
+      lastSeen: Date.now(),
+      reason: 'live_telemetry',
+    });
+  }
+
+  public async markEsp32Offline(homeId: string, reason: string): Promise<void> {
+    await this.store.updateEsp32Status(homeId, {
+      online: false,
+      lastSeen: Date.now(),
+      reason,
+    });
+  }
+
   private async maybeAppendHistoricalSnapshot(
     homeId: string,
     latest: LatestSensorsRecord,
     timestamp: number,
     forceWrite: boolean
   ): Promise<void> {
+    if (!latest.temperature || !latest.humidity || !latest.smoke || !latest.motion) {
+      return;
+    }
+
     const lastSaved = this.lastSensorHistorySavedAt.get(homeId) ?? 0;
     if (!forceWrite && timestamp - lastSaved < this.sensorLogIntervalMs) {
       return;

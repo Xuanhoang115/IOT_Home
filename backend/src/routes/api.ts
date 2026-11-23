@@ -23,6 +23,7 @@ export function createApiRouter(deps?: {
   router.get('/health', controller.getHealth);
 
   // Protected endpoints (Require Firebase ID Token + home1 access)
+  router.get('/snapshot', authMiddleware, controller.getSnapshot);
   router.get('/rooms', authMiddleware, controller.getRooms);
   router.get('/devices', authMiddleware, controller.getDevices);
   router.get('/devices/:id', authMiddleware, controller.getDeviceById);

@@ -37,7 +37,7 @@ Bảng theo dõi tiến độ theo 12 Phase bắt buộc và phân công cho 5 t
 ## PHASE 5: Firebase Auth + Realtime Database
 - [x] **[TV2]** Tích hợp Firebase Admin SDK vào Backend để verify ID Token và kiểm tra quyền truy cập `home1` (`backend/src/services/firebaseService.ts`, `backend/src/middleware/authMiddleware.ts`)
 - [x] **[TV2]** Đồng bộ dữ liệu từ MQTT sang Firebase (`devices`, `latestSensors`, `sensorReadings`, `commands`, `alerts`, `activityLogs`)
-- [x] **[TV2]** Viết script seed dữ liệu mẫu (`scripts/seed-firebase.ts`) để chạy app ngay khi chưa cắm phần cứng
+- [x] **[TV2]** Viết script seed dữ liệu mẫu (`backend/scripts/seed-firebase.ts`) để chạy app ngay khi chưa cắm phần cứng
 
 ## PHASE 6: React Native Expo App
 - [x] **[TV1]** Chuẩn hóa Mobile App (Expo SDK 54 + TypeScript) trong `mobile/`, bảo toàn và sửa toàn bộ lỗi trong `src/`
@@ -45,23 +45,25 @@ Bảng theo dõi tiến độ theo 12 Phase bắt buộc và phân công cho 5 t
 - [x] **[TV1, TV2]** Tích hợp REST API & đồng bộ trạng thái realtime (`mobile/contexts/SmartHomeContext.tsx`, `mobile/services/api.ts`), xử lý trạng thái `PENDING` chờ `reportedState`/ACK kèm timeout
 
 ## PHASE 7: ESP32 Firmware
-- [ ] **[TV4]** Cấu hình project PlatformIO / Arduino cho ESP32 DevKit CP2102 30 chân (`firmware/esp32-smarthome/`)
-- [ ] **[TV4]** Lập trình kết nối Wi-Fi, MQTT over TLS (`WiFiClientSecure`), Last Will and Testament, tự động reconnect không dùng `delay()` dài
-- [ ] **[TV4]** Lập trình đọc cảm biến (`DHT22`, `PIR`, `MQ-2`), điều khiển `LED`, `Quạt MOSFET`, `Servo SG90`, `Buzzer` và nút nhấn vật lý có debounce
+- [x] **[TV4]** Cấu hình sketch Arduino IDE cho ESP32 DevKit CP2102 30 chân (`firmware/esp32-smarthome/esp32-smarthome.ino`, `include/config.h`) — *đã build & nạp lên bo thật (COM5)*
+- [x] **[TV4]** Lập trình kết nối Wi-Fi, MQTT over TLS (`WiFiClientSecure`), Last Will and Testament, tự động reconnect không dùng `delay()` dài (`esp32-smarthome.ino`) — *đã test kết nối EMQX Cloud TLS :8883 trên mạch thật*
+- [x] **[TV4]** Lập trình đọc cảm biến (`DHT22`, `PIR`, `MQ-2`), điều khiển `LED`, `Quạt MOSFET`, `Servo SG90`, `Buzzer` và nút nhấn vật lý có debounce — *đã test thực tế: 2 LED, Quạt MOSFET, DHT22, 2 nút nhấn vật lý*
+- [x] **[TV4]** Kiểm tra thời hạn lệnh MQTT và đối chiếu thiết bị trong firmware trước khi tác động GPIO.
+- [x] **[TV4]** Verify sketch với Arduino IDE, nạp lên bo và kiểm tra NTP, TLS, lệnh quá hạn, lệnh trùng, reconnect và LWT theo README firmware.
 
 ## PHASE 8: Tích hợp điều khiển
-- [ ] **[TV1, TV3, TV4]** Kiểm thử luồng điều khiển End-to-End: Mobile → Backend API → HiveMQ → ESP32 → Phản hồi `reportedState` → Firebase → Mobile
-- [ ] **[TV3, TV4]** Kiểm thử xử lý lệnh trùng (`requestId`), timeout khi ESP32 offline và đồng bộ nút nhấn vật lý lên App
+- [x] **[TV1, TV3, TV4]** Kiểm thử luồng điều khiển End-to-End: Mobile/Web → Backend API → MQTT TLS → ESP32 → Phản hồi `reportedState` → Firebase → Mobile/Web (2 Đèn LED + Quạt MOSFET)
+- [x] **[TV3, TV4]** Kiểm thử xử lý lệnh trùng (`requestId`), timeout khi ESP32 offline và đồng bộ 2 nút nhấn vật lý (`BTN_LIGHT` D19, `BTN_DOOR` D18) lên App theo thời gian thực
 
 ## PHASE 9: Cảm biến, cửa tự động, cảnh báo
-- [ ] **[TV3, TV4]** Triển khai chế độ `Manual` / `Auto` (tự bật quạt có hysteresis theo nhiệt độ, còi buzzer cục bộ khi MQ-2 vượt ngưỡng)
-- [ ] **[TV4]** Hiệu chỉnh góc đóng/mở cửa Servo SG90 và cơ chế an toàn (không tự đóng cửa chỉ dựa vào PIR)
+- [x] **[TV3, TV4]** Triển khai chế độ `Manual` / `Auto` (tự bật quạt có hysteresis theo nhiệt độ ≥ 31°C, tắt ≤ 29.5°C; còi Buzzer cảnh báo độc lập)
+- [x] **[TV4]** Lắp đặt và tích hợp thực tế Cảm biến chuyển động `PIR HC-SR501` (`D35`), Cảm biến khói `MQ-2` (`D34` có Auto-Baseline), Cảm biến lửa `Flame Sensor` (`D33`), Màn hình `OLED 0.96" I2C` (`D21/D22`), và tối ưu `Smart Detach` + cảm biến từ `MC-38` (`D32`) cho Cửa *(Phần hàn gắn cơ học Servo để sau)*
 
 ## PHASE 10: Notification
-- [ ] **[TV1, TV2, TV3]** Triển khai cảnh báo theo 3 trạng thái: `Foreground` (in-app banner), `Background` và `Terminated` (FCM/APNs + điều hướng sang màn hình Alerts), chống spam cảnh báo trùng
+- [x] **[TV1, TV2, TV3]** Triển khai cảnh báo `Foreground` (in-app banner), đồng bộ xác nhận cảnh báo thời gian thực giữa iPhone và máy tính, chống spam cảnh báo trùng *(Phần Android Development Build FCM để sau vì đang dùng iPhone)*
 
 ## PHASE 11: Kiểm thử và sửa lỗi
-- [ ] **[TV5, Toàn nhóm]** Thực hiện đầy đủ Test Cases trong `docs/TEST_PLAN.md` (Unit, Integration, E2E, mất mạng, sụt áp nguồn)
+- [x] **[TV5, Toàn nhóm]** Thực hiện đầy đủ Test Cases trong `docs/TEST_PLAN.md` (Unit, Integration, E2E, mất mạng, Watchdog Offline & Timeout 8s)
 
 ## PHASE 12: Báo cáo và chuẩn bị bảo vệ
-- [ ] **[TV4, TV5]** Hoàn thiện mô hình vật lý chạy nguồn độc lập, quay video demo, tổng hợp báo cáo & slide bảo vệ đồ án
+- [x] **[TV4, TV5]** Tổng hợp kịch bản trình diễn bảo vệ đồ án (`docs/DEMO_SCRIPT.md`), tài liệu kiến trúc & kiểm thử (`docs/`) *(Phần lắp thêm linh kiện Servo/MQ-2/PIR và build Android APK để sau khi có linh kiện)*

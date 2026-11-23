@@ -127,5 +127,5 @@ npm start
 ```
 
 ### 5.3. Các Phase Tiếp Theo
-- **Phase 7**: Lập trình Firmware ESP32 DevKit CP2102 30 chân (`firmware/esp32-smarthome/`).
+- **Phase 7**: Sketch ESP32 đã có mã. Còn Verify, nạp bo và kiểm tra MQTT trên thiết bị. Xem [hướng dẫn firmware trên Windows](firmware/esp32-smarthome/README.md).
 - **Phase 8 – 12**: Tích hợp điều khiển, cảm biến/cảnh báo, thông báo đẩy 3 trạng thái, kiểm thử toàn diện & báo cáo bảo vệ.

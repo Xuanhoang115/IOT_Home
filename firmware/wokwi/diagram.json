@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "author": "Smart Home IoT 2026",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 20,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": -185,
+      "left": 180,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -160,
+      "left": 350,
+      "attrs": { "temperature": "28.6", "humidity": "65" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_living",
+      "top": -150,
+      "left": -150,
+      "attrs": { "color": "red", "label": "Den P.Khach (D25)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -70,
+      "left": -160,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_bed",
+      "top": -150,
+      "left": -60,
+      "attrs": { "color": "yellow", "label": "Den P.Ngu (D26)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -70,
+      "left": -70,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_fan",
+      "top": -150,
+      "left": 30,
+      "attrs": { "color": "cyan", "label": "Quat 5V (D27)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": -70,
+      "left": 20,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-motion-sensor",
+      "id": "pir1",
+      "top": -150,
+      "left": -280,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_smoke",
+      "top": 10,
+      "left": -240,
+      "attrs": { "min": "0", "max": "4095", "value": "350", "label": "MQ-2 Khoi (D34)" }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "sw_flame",
+      "top": 135,
+      "left": -230,
+      "attrs": { "value": "1" }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "sw_door_mc38",
+      "top": 215,
+      "left": -230,
+      "attrs": { "value": "1" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 120,
+      "left": -120,
+      "attrs": { "volume": "0.15" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": 250,
+      "left": -130,
+      "attrs": { "hornColor": "blue" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_door",
+      "top": 220,
+      "left": 210,
+      "attrs": { "color": "green", "label": "Nut Cua (D18)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_light",
+      "top": 220,
+      "left": 320,
+      "attrs": { "color": "blue", "label": "Den / Mode (D19)" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "esp:25", "r1:1", "red", [ "h-40", "v-190" ] ],
+    [ "r1:2", "led_living:A", "red", [ "v0" ] ],
+    [ "led_living:C", "esp:GND.1", "black", [ "v20", "h130" ] ],
+
+    [ "esp:26", "r2:1", "orange", [ "h-30", "v-200" ] ],
+    [ "r2:2", "led_bed:A", "orange", [ "v0" ] ],
+    [ "led_bed:C", "esp:GND.1", "black", [ "v20", "h40" ] ],
+
+    [ "esp:27", "r3:1", "cyan", [ "h-20", "v-210" ] ],
+    [ "r3:2", "led_fan:A", "cyan", [ "v0" ] ],
+    [ "led_fan:C", "esp:GND.1", "black", [ "v20", "h-50" ] ],
+
+    [ "esp:13", "servo1:PWM", "orange", [ "h-40", "v80" ] ],
+    [ "esp:5V", "servo1:V+", "red", [ "h-20", "v80" ] ],
+    [ "servo1:GND", "esp:GND.1", "black", [ "h20" ] ],
+
+    [ "esp:14", "bz1:2", "purple", [ "h-30", "v-10" ] ],
+    [ "bz1:1", "esp:GND.1", "black", [ "v0" ] ],
+
+    [ "esp:21", "oled1:SDA", "blue", [ "h60", "v-250" ] ],
+    [ "esp:22", "oled1:SCL", "green", [ "h80", "v-220" ] ],
+    [ "oled1:VCC", "esp:3V3", "red", [ "v-15", "h-190" ] ],
+    [ "oled1:GND", "esp:GND.2", "black", [ "v-10", "h-10" ] ],
+
+    [ "esp:4", "dht1:SDA", "green", [ "h120", "v-230" ] ],
+    [ "dht1:VCC", "esp:3V3", "red", [ "v20", "h-350" ] ],
+    [ "dht1:GND", "esp:GND.2", "black", [ "v20", "h-160" ] ],
+
+    [ "esp:35", "pir1:OUT", "yellow", [ "h-180", "v-100" ] ],
+    [ "pir1:VCC", "esp:5V", "red", [ "v180", "h170" ] ],
+    [ "pir1:GND", "esp:GND.1", "black", [ "v160", "h170" ] ],
+
+    [ "esp:34", "pot_smoke:SIG", "cyan", [ "h-120", "v20" ] ],
+    [ "pot_smoke:VCC", "esp:3V3", "red", [ "v-20", "h180" ] ],
+    [ "pot_smoke:GND", "esp:GND.1", "black", [ "v20", "h160" ] ],
+
+    [ "esp:33", "sw_flame:2", "brown", [ "h-140", "v60" ] ],
+    [ "sw_flame:1", "esp:GND.1", "black", [ "v10", "h160" ] ],
+
+    [ "esp:32", "sw_door_mc38:2", "gray", [ "h-150", "v130" ] ],
+    [ "sw_door_mc38:1", "esp:GND.1", "black", [ "v10", "h160" ] ],
+
+    [ "esp:18", "btn_door:1.l", "green", [ "h70", "v80" ] ],
+    [ "btn_door:2.l", "esp:GND.2", "black", [ "h-40", "v-120" ] ],
+
+    [ "esp:19", "btn_light:1.l", "blue", [ "h150", "v90" ] ],
+    [ "btn_light:2.l", "esp:GND.2", "black", [ "h-120", "v-130" ] ]
+  ]
+}

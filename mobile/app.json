@@ -10,7 +10,7 @@
     "splash": {
       "image": "../assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2850E8"
+      "backgroundColor": "#071B46"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "vn.edu.smarthome2026",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "../assets/adaptive-icon.png",
         "backgroundColor": "#2850E8"
@@ -26,6 +27,15 @@
     },
     "web": {
       "favicon": "../assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "31c2dea5-ec99-4e74-8f60-fbdda8a67c20"
+      }
+    },
+    "owner": "khanh2605iot"
   }
 }

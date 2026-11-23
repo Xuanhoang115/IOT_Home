@@ -31,6 +31,24 @@ export class FirebaseService {
   private mode: 'firebase-admin' | 'in-memory' = 'in-memory';
   private db: admin.database.Database | null = null;
   private memoryStore: FullDatabaseSchema;
+  private tokenCache = new Map<string, { user: VerifiedUser; expiresAt: number }>();
+  private homeAccessCache = new Map<string, boolean>();
+  private cacheWarmed = new Set<string>();
+  private lastStatusFlushedToDb = new Map<
+    string,
+    { online: boolean; rssi?: number; firmwareVersion?: string; flushedAt: number }
+  >();
+  private fcmDirectoryCache: {
+    userHomes: Record<string, Record<string, boolean>>;
+    allTokens: Record<string, Record<string, NotificationTokenRecord>>;
+    expiresAt: number;
+  } | null = null;
+  private perfCounters = {
+    esp32StatusDbWrites: 0,
+    esp32StatusDbWritesSkipped: 0,
+    fcmDirectoryCacheHits: 0,
+    fcmDirectoryCacheMisses: 0,
+  };
   private pushLogHistory: Array<{
     homeId: string;
     title: string;
@@ -56,6 +74,7 @@ export class FirebaseService {
         }
         this.db = admin.database();
         this.mode = 'firebase-admin';
+        void this.warmCacheFromFirebase(env.HOME_ID);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.warn(
@@ -66,6 +85,96 @@ export class FirebaseService {
     }
   }
 
+  private async warmCacheFromFirebase(homeId: string): Promise<void> {
+    if (this.mode !== 'firebase-admin' || !this.db || this.cacheWarmed.has(homeId)) return;
+    this.cacheWarmed.add(homeId);
+    try {
+      const [homeSnap, roomsSnap, devicesSnap, latestSnap, alertsSnap, logsSnap, cmdsSnap] =
+        await Promise.all([
+          this.db.ref(`homes/${homeId}`).get(),
+          this.db.ref(`rooms/${homeId}`).get(),
+          this.db.ref(`devices/${homeId}`).get(),
+          this.db.ref(`latestSensors/${homeId}`).get(),
+          this.db.ref(`alerts/${homeId}`).limitToLast(50).get(),
+          this.db.ref(`activityLogs/${homeId}`).limitToLast(50).get(),
+          this.db.ref(`commands/${homeId}`).limitToLast(30).get(),
+        ]);
+      if (homeSnap.exists()) {
+        const remoteHome = homeSnap.val() as HomeRecord;
+        const currentStatus = this.memoryStore.homes[homeId]?.esp32Status;
+        this.memoryStore.homes[homeId] = {
+          ...remoteHome,
+          esp32Status: {
+            ...remoteHome.esp32Status,
+            // Không kế thừa trạng thái online=true cũ từ phiên trước trong Firebase
+            online: currentStatus?.reason === 'live_telemetry' ? true : false,
+          },
+        };
+      }
+      if (roomsSnap.exists()) this.memoryStore.rooms[homeId] = roomsSnap.val();
+      if (devicesSnap.exists()) this.memoryStore.devices[homeId] = devicesSnap.val();
+      if (latestSnap.exists()) this.memoryStore.latestSensors[homeId] = latestSnap.val();
+      if (alertsSnap.exists()) this.memoryStore.alerts[homeId] = alertsSnap.val();
+      if (logsSnap.exists()) this.memoryStore.activityLogs[homeId] = logsSnap.val();
+      if (cmdsSnap.exists()) this.memoryStore.commands[homeId] = cmdsSnap.val();
+    } catch (err) {
+      console.warn('[FirebaseService] Không thể nạp cache ban đầu từ Firebase:', err);
+    }
+  }
+
+  private bgWrite(task: Promise<unknown>): void {
+    task.catch((err) => {
+      console.warn('[FirebaseService] Lỗi đồng bộ nền lên Firebase:', err);
+    });
+  }
+
+  private pruneMapByTimestamp<T>(
+    map: Record<string, T>,
+    getTs: (item: T) => number,
+    maxEntries = 150
+  ): void {
+    const keys = Object.keys(map);
+    if (keys.length <= maxEntries) return;
+    keys
+      .sort((a, b) => getTs(map[b]!) - getTs(map[a]!))
+      .slice(maxEntries)
+      .forEach((oldKey) => {
+        delete map[oldKey];
+      });
+  }
+
+  private upsertBucketRecord<T>(
+    buckets: Record<string, Record<string, T>>,
+    homeId: string,
+    recordId: string,
+    record: T,
+    getTs: (item: T) => number,
+    firebasePath: string,
+    firebasePayload: unknown = record
+  ): void {
+    if (!buckets[homeId]) {
+      buckets[homeId] = {};
+    }
+    buckets[homeId]![recordId] = record;
+    this.pruneMapByTimestamp(buckets[homeId]!, getTs);
+
+    if (this.mode === 'firebase-admin' && this.db) {
+      this.bgWrite(this.db.ref(firebasePath).set(firebasePayload));
+    }
+  }
+
+  private listBucketSorted<T>(
+    buckets: Record<string, Record<string, T>>,
+    homeId: string,
+    getTs: (item: T) => number,
+    limit: number
+  ): T[] {
+    const map = buckets[homeId] ?? {};
+    return Object.values(map)
+      .sort((a, b) => getTs(b) - getTs(a))
+      .slice(0, limit);
+  }
+
   public getMode(): 'firebase-admin' | 'in-memory' {
     return this.mode;
   }
@@ -73,6 +182,20 @@ export class FirebaseService {
   public resetMemoryStore(homeId = env.HOME_ID): void {
     this.memoryStore = createInitialSeedData(homeId);
     this.pushLogHistory = [];
+    this.tokenCache.clear();
+    this.homeAccessCache.clear();
+    this.lastStatusFlushedToDb.clear();
+    this.fcmDirectoryCache = null;
+    this.perfCounters = {
+      esp32StatusDbWrites: 0,
+      esp32StatusDbWritesSkipped: 0,
+      fcmDirectoryCacheHits: 0,
+      fcmDirectoryCacheMisses: 0,
+    };
+  }
+
+  public getPerfStats() {
+    return { ...this.perfCounters };
   }
 
   public getPushLogHistory() {
@@ -85,15 +208,26 @@ export class FirebaseService {
     }
 
     if (this.mode === 'firebase-admin') {
+      const now = Date.now();
+      const cached = this.tokenCache.get(token);
+      if (cached && cached.expiresAt > now) {
+        return cached.user;
+      }
+      if (this.tokenCache.size > 200) {
+        for (const [k, v] of this.tokenCache.entries()) {
+          if (v.expiresAt <= now) this.tokenCache.delete(k);
+        }
+      }
       const decoded = await admin.auth().verifyIdToken(token);
-      return {
+      const user: VerifiedUser = {
         uid: decoded.uid,
         email: decoded.email,
       };
+      this.tokenCache.set(token, { user, expiresAt: now + 300000 });
+      return user;
     }
 
     // Chế độ In-Memory (Development / Vitest khi chưa cấu hình Firebase Admin):
-    // Cho phép định dạng token: "dev-token:<uid>" hoặc khớp trực tiếp với uid trong seedData
     const normalized = token.startsWith('dev-token:')
       ? token.replace('dev-token:', '').trim()
       : token.trim();
@@ -111,18 +245,20 @@ export class FirebaseService {
 
   public async hasHomeAccess(uid: string, homeId: string): Promise<boolean> {
     if (this.mode === 'firebase-admin' && this.db) {
+      const cacheKey = `${uid}:${homeId}`;
+      const cached = this.homeAccessCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+
       const snap = await this.db.ref(`userHomes/${uid}/${homeId}`).get();
-      return snap.exists() && snap.val() === true;
+      const allowed = snap.exists() && snap.val() === true;
+      this.homeAccessCache.set(cacheKey, allowed);
+      return allowed;
     }
 
     return this.memoryStore.userHomes[uid]?.[homeId] === true;
   }
 
   public async getHome(homeId: string): Promise<HomeRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`homes/${homeId}`).get();
-      return snap.exists() ? (snap.val() as HomeRecord) : null;
-    }
     return this.memoryStore.homes[homeId] ?? null;
   }
 
@@ -141,13 +277,14 @@ export class FirebaseService {
       },
     };
 
+    this.memoryStore.homes[homeId] = updated;
     if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`homes/${homeId}`).update({
-        systemMode: updated.systemMode,
-        autoConfig: updated.autoConfig,
-      });
-    } else {
-      this.memoryStore.homes[homeId] = updated;
+      this.bgWrite(
+        this.db.ref(`homes/${homeId}`).update({
+          systemMode: updated.systemMode,
+          autoConfig: updated.autoConfig,
+        })
+      );
     }
 
     return updated;
@@ -163,46 +300,53 @@ export class FirebaseService {
       ...statusPatch,
     };
 
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`homes/${homeId}/esp32Status`).update(updatedStatus);
-    } else {
-      if (!this.memoryStore.homes[homeId]) {
-        this.memoryStore.homes[homeId] = home;
+    if (!this.memoryStore.homes[homeId]) {
+      this.memoryStore.homes[homeId] = home;
+    }
+    this.memoryStore.homes[homeId]!.esp32Status = updatedStatus;
+
+    // Giảm >90% lượt ghi lặp lên Firebase RTDB: luôn ghi ngay khi online/rssi/firmware đổi,
+    // còn heartbeat giữ nguyên trạng thái chỉ đồng bộ lên DB mỗi 30 giây (RAM cache vẫn luôn 0ms realtime).
+    const now = Date.now();
+    const lastFlushed = this.lastStatusFlushedToDb.get(homeId);
+    const shouldFlushDb =
+      !lastFlushed ||
+      lastFlushed.online !== updatedStatus.online ||
+      lastFlushed.firmwareVersion !== updatedStatus.firmwareVersion ||
+      (updatedStatus.rssi !== undefined &&
+        lastFlushed.rssi !== undefined &&
+        Math.abs(updatedStatus.rssi - lastFlushed.rssi) >= 3) ||
+      now - lastFlushed.flushedAt >= 30000;
+
+    if (shouldFlushDb) {
+      this.lastStatusFlushedToDb.set(homeId, {
+        online: updatedStatus.online,
+        rssi: updatedStatus.rssi,
+        firmwareVersion: updatedStatus.firmwareVersion,
+        flushedAt: now,
+      });
+      this.perfCounters.esp32StatusDbWrites += 1;
+      if (this.mode === 'firebase-admin' && this.db) {
+        this.bgWrite(this.db.ref(`homes/${homeId}/esp32Status`).update(updatedStatus));
       }
-      this.memoryStore.homes[homeId]!.esp32Status = updatedStatus;
+    } else {
+      this.perfCounters.esp32StatusDbWritesSkipped += 1;
     }
 
     return updatedStatus;
   }
 
   public async getRooms(homeId: string): Promise<RoomRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`rooms/${homeId}`).get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<RoomId, RoomRecord>);
-    }
-
     const roomsMap = this.memoryStore.rooms[homeId] ?? {};
     return Object.values(roomsMap);
   }
 
   public async getDevices(homeId: string): Promise<DeviceRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`devices/${homeId}`).get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<DeviceId, DeviceRecord>);
-    }
-
     const devicesMap = this.memoryStore.devices[homeId] ?? {};
     return Object.values(devicesMap);
   }
 
   public async getDevice(homeId: string, deviceId: DeviceId): Promise<DeviceRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`devices/${homeId}/${deviceId}`).get();
-      return snap.exists() ? (snap.val() as DeviceRecord) : null;
-    }
-
     return this.memoryStore.devices[homeId]?.[deviceId] ?? null;
   }
 
@@ -231,15 +375,16 @@ export class FirebaseService {
       lastUpdated: timestamp,
     };
 
+    this.memoryStore.devices[homeId]![deviceId] = updated;
     if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`devices/${homeId}/${deviceId}`).update({
-        desiredState: updated.desiredState,
-        lastCommandStatus: updated.lastCommandStatus,
-        lastRequestId: updated.lastRequestId,
-        lastUpdated: updated.lastUpdated,
-      });
-    } else {
-      this.memoryStore.devices[homeId]![deviceId] = updated;
+      this.bgWrite(
+        this.db.ref(`devices/${homeId}/${deviceId}`).update({
+          desiredState: updated.desiredState,
+          lastCommandStatus: updated.lastCommandStatus,
+          lastRequestId: updated.lastRequestId,
+          lastUpdated: updated.lastUpdated,
+        })
+      );
     }
 
     return updated;
@@ -263,7 +408,6 @@ export class FirebaseService {
       ...(deviceId === 'door1' ? { positionVerified: reportedState.positionVerified ?? false } : {}),
     };
 
-    // Khi nhận phản hồi từ nút vật lý hoặc chế độ AUTO, đồng bộ desiredState theo thực tế
     const syncedDesired: DesiredState = {
       ...existing.desiredState,
       ...(mergedReported.power !== undefined ? { power: mergedReported.power } : {}),
@@ -282,15 +426,16 @@ export class FirebaseService {
       lastUpdated: timestamp,
     };
 
+    this.memoryStore.devices[homeId]![deviceId] = updated;
     if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`devices/${homeId}/${deviceId}`).update({
-        desiredState: updated.desiredState,
-        reportedState: updated.reportedState,
-        lastCommandStatus: updated.lastCommandStatus,
-        lastUpdated: updated.lastUpdated,
-      });
-    } else {
-      this.memoryStore.devices[homeId]![deviceId] = updated;
+      this.bgWrite(
+        this.db.ref(`devices/${homeId}/${deviceId}`).update({
+          desiredState: updated.desiredState,
+          reportedState: updated.reportedState,
+          lastCommandStatus: updated.lastCommandStatus,
+          lastUpdated: updated.lastUpdated,
+        })
+      );
     }
 
     return updated;
@@ -302,31 +447,30 @@ export class FirebaseService {
     status: CommandStatus,
     timestamp: number
   ): Promise<void> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`devices/${homeId}/${deviceId}`).update({
-        lastCommandStatus: status,
-        lastUpdated: timestamp,
-      });
-      return;
-    }
-
     const existing = this.memoryStore.devices[homeId]?.[deviceId];
     if (existing) {
       existing.lastCommandStatus = status;
       existing.lastUpdated = timestamp;
     }
+    if (this.mode === 'firebase-admin' && this.db) {
+      this.bgWrite(
+        this.db.ref(`devices/${homeId}/${deviceId}`).update({
+          lastCommandStatus: status,
+          lastUpdated: timestamp,
+        })
+      );
+    }
   }
 
   public async saveCommand(homeId: string, command: CommandRecord): Promise<void> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`commands/${homeId}/${command.requestId}`).set(command);
-      return;
-    }
-
-    if (!this.memoryStore.commands[homeId]) {
-      this.memoryStore.commands[homeId] = {};
-    }
-    this.memoryStore.commands[homeId]![command.requestId] = command;
+    this.upsertBucketRecord(
+      this.memoryStore.commands,
+      homeId,
+      command.requestId,
+      command,
+      (c) => c.createdAt,
+      `commands/${homeId}/${command.requestId}`
+    );
   }
 
   public async updateCommand(
@@ -334,56 +478,26 @@ export class FirebaseService {
     requestId: string,
     patch: Partial<CommandRecord>
   ): Promise<CommandRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const ref = this.db.ref(`commands/${homeId}/${requestId}`);
-      const snap = await ref.get();
-      if (!snap.exists()) return null;
-      await ref.update(patch);
-      const updatedSnap = await ref.get();
-      return updatedSnap.val() as CommandRecord;
-    }
-
     const existing = this.memoryStore.commands[homeId]?.[requestId];
     if (!existing) return null;
     const updated: CommandRecord = { ...existing, ...patch };
     this.memoryStore.commands[homeId]![requestId] = updated;
+
+    if (this.mode === 'firebase-admin' && this.db) {
+      this.bgWrite(this.db.ref(`commands/${homeId}/${requestId}`).update(patch));
+    }
     return updated;
   }
 
   public async getCommand(homeId: string, requestId: string): Promise<CommandRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`commands/${homeId}/${requestId}`).get();
-      return snap.exists() ? (snap.val() as CommandRecord) : null;
-    }
-
     return this.memoryStore.commands[homeId]?.[requestId] ?? null;
   }
 
   public async getRecentCommands(homeId: string, limit = 30): Promise<CommandRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db
-        .ref(`commands/${homeId}`)
-        .orderByChild('createdAt')
-        .limitToLast(limit)
-        .get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<string, CommandRecord>).sort(
-        (a, b) => b.createdAt - a.createdAt
-      );
-    }
-
-    const map = this.memoryStore.commands[homeId] ?? {};
-    return Object.values(map)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, limit);
+    return this.listBucketSorted(this.memoryStore.commands, homeId, (c) => c.createdAt, limit);
   }
 
   public async getLatestSensors(homeId: string): Promise<LatestSensorsRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db.ref(`latestSensors/${homeId}`).get();
-      return snap.exists() ? (snap.val() as LatestSensorsRecord) : null;
-    }
-
     return this.memoryStore.latestSensors[homeId] ?? null;
   }
 
@@ -392,16 +506,14 @@ export class FirebaseService {
     sensorKey: K,
     value: LatestSensorsRecord[K]
   ): Promise<LatestSensorsRecord> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`latestSensors/${homeId}/${String(sensorKey)}`).set(value);
-      const snap = await this.db.ref(`latestSensors/${homeId}`).get();
-      return snap.val() as LatestSensorsRecord;
-    }
-
     if (!this.memoryStore.latestSensors[homeId]) {
       this.memoryStore.latestSensors[homeId] = createInitialSeedData(homeId).latestSensors[homeId]!;
     }
     this.memoryStore.latestSensors[homeId]![sensorKey] = value;
+
+    if (this.mode === 'firebase-admin' && this.db) {
+      this.bgWrite(this.db.ref(`latestSensors/${homeId}/${String(sensorKey)}`).set(value));
+    }
     return this.memoryStore.latestSensors[homeId]!;
   }
 
@@ -410,118 +522,75 @@ export class FirebaseService {
     readingId: string,
     reading: SensorReadingRecord
   ): Promise<void> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`sensorReadings/${homeId}/${readingId}`).set(reading);
-      return;
-    }
-
-    if (!this.memoryStore.sensorReadings[homeId]) {
-      this.memoryStore.sensorReadings[homeId] = {};
-    }
-    this.memoryStore.sensorReadings[homeId]![readingId] = reading;
+    this.upsertBucketRecord(
+      this.memoryStore.sensorReadings,
+      homeId,
+      readingId,
+      reading,
+      (r) => r.timestamp,
+      `sensorReadings/${homeId}/${readingId}`
+    );
   }
 
   public async getRecentSensorReadings(homeId: string, limit = 30): Promise<SensorReadingRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db
-        .ref(`sensorReadings/${homeId}`)
-        .orderByChild('timestamp')
-        .limitToLast(limit)
-        .get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<string, SensorReadingRecord>).sort(
-        (a, b) => b.timestamp - a.timestamp
-      );
-    }
-
-    const map = this.memoryStore.sensorReadings[homeId] ?? {};
-    return Object.values(map)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
+    return this.listBucketSorted(
+      this.memoryStore.sensorReadings,
+      homeId,
+      (r) => r.timestamp,
+      limit
+    );
   }
 
   public async saveAlert(homeId: string, alert: AlertRecord): Promise<void> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`alerts/${homeId}/${alert.id}`).set(alert);
-      return;
-    }
-
-    if (!this.memoryStore.alerts[homeId]) {
-      this.memoryStore.alerts[homeId] = {};
-    }
-    this.memoryStore.alerts[homeId]![alert.id] = alert;
+    const firebaseAlert = Object.fromEntries(
+      Object.entries(alert).filter(([, value]) => value !== undefined)
+    );
+    this.upsertBucketRecord(
+      this.memoryStore.alerts,
+      homeId,
+      alert.id,
+      alert,
+      (a) => a.timestamp,
+      `alerts/${homeId}/${alert.id}`,
+      firebaseAlert
+    );
   }
 
   public async getAlerts(homeId: string, limit = 50): Promise<AlertRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db
-        .ref(`alerts/${homeId}`)
-        .orderByChild('timestamp')
-        .limitToLast(limit)
-        .get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<string, AlertRecord>).sort(
-        (a, b) => b.timestamp - a.timestamp
-      );
-    }
-
-    const map = this.memoryStore.alerts[homeId] ?? {};
-    return Object.values(map)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
+    return this.listBucketSorted(this.memoryStore.alerts, homeId, (a) => a.timestamp, limit);
   }
 
   public async acknowledgeAlert(homeId: string, alertId: string): Promise<AlertRecord | null> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const ref = this.db.ref(`alerts/${homeId}/${alertId}`);
-      const snap = await ref.get();
-      if (!snap.exists()) return null;
-      await ref.update({ acknowledged: true });
-      const updated = await ref.get();
-      return updated.val() as AlertRecord;
-    }
-
     const existing = this.memoryStore.alerts[homeId]?.[alertId];
     if (!existing) return null;
     existing.acknowledged = true;
+
+    if (this.mode === 'firebase-admin' && this.db) {
+      this.bgWrite(this.db.ref(`alerts/${homeId}/${alertId}`).update({ acknowledged: true }));
+    }
     return existing;
   }
 
   public async appendActivityLog(homeId: string, log: ActivityLogRecord): Promise<void> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      await this.db.ref(`activityLogs/${homeId}/${log.id}`).set(log);
-      return;
-    }
-
-    if (!this.memoryStore.activityLogs[homeId]) {
-      this.memoryStore.activityLogs[homeId] = {};
-    }
-    this.memoryStore.activityLogs[homeId]![log.id] = log;
+    this.upsertBucketRecord(
+      this.memoryStore.activityLogs,
+      homeId,
+      log.id,
+      log,
+      (l) => l.timestamp,
+      `activityLogs/${homeId}/${log.id}`
+    );
   }
 
   public async getActivityLogs(homeId: string, limit = 50): Promise<ActivityLogRecord[]> {
-    if (this.mode === 'firebase-admin' && this.db) {
-      const snap = await this.db
-        .ref(`activityLogs/${homeId}`)
-        .orderByChild('timestamp')
-        .limitToLast(limit)
-        .get();
-      if (!snap.exists()) return [];
-      return Object.values(snap.val() as Record<string, ActivityLogRecord>).sort(
-        (a, b) => b.timestamp - a.timestamp
-      );
-    }
-
-    const map = this.memoryStore.activityLogs[homeId] ?? {};
-    return Object.values(map)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
+    return this.listBucketSorted(this.memoryStore.activityLogs, homeId, (l) => l.timestamp, limit);
   }
 
   public async saveNotificationToken(
     uid: string,
     record: NotificationTokenRecord
   ): Promise<NotificationTokenRecord> {
+    this.fcmDirectoryCache = null;
     if (this.mode === 'firebase-admin' && this.db) {
       await this.db.ref(`notificationTokens/${uid}/${record.deviceKey}`).set(record);
       return record;
@@ -547,33 +616,81 @@ export class FirebaseService {
       data,
       timestamp: Date.now(),
     });
+    if (this.pushLogHistory.length > 100) {
+      this.pushLogHistory = this.pushLogHistory.slice(-100);
+    }
 
     if (this.mode === 'firebase-admin' && this.db) {
       try {
-        const userHomesSnap = await this.db.ref('userHomes').get();
-        const tokensSnap = await this.db.ref('notificationTokens').get();
-        if (!userHomesSnap.exists() || !tokensSnap.exists()) return 0;
+        const now = Date.now();
+        let userHomes: Record<string, Record<string, boolean>>;
+        let allTokens: Record<string, Record<string, NotificationTokenRecord>>;
 
-        const userHomes = userHomesSnap.val() as Record<string, Record<string, boolean>>;
-        const allTokens = tokensSnap.val() as Record<string, Record<string, NotificationTokenRecord>>;
-        const fcmTokens: string[] = [];
+        if (this.fcmDirectoryCache && this.fcmDirectoryCache.expiresAt > now) {
+          this.perfCounters.fcmDirectoryCacheHits += 1;
+          userHomes = this.fcmDirectoryCache.userHomes;
+          allTokens = this.fcmDirectoryCache.allTokens;
+        } else {
+          this.perfCounters.fcmDirectoryCacheMisses += 1;
+          const [userHomesSnap, tokensSnap] = await Promise.all([
+            this.db.ref('userHomes').get(),
+            this.db.ref('notificationTokens').get(),
+          ]);
+          if (!userHomesSnap.exists() || !tokensSnap.exists()) return 0;
+
+          userHomes = userHomesSnap.val() as Record<string, Record<string, boolean>>;
+          allTokens = tokensSnap.val() as Record<string, Record<string, NotificationTokenRecord>>;
+          this.fcmDirectoryCache = {
+            userHomes,
+            allTokens,
+            expiresAt: now + 60000,
+          };
+        }
+
+        const tokenEntries: Array<{ token: string; path: string }> = [];
 
         for (const [uid, homes] of Object.entries(userHomes)) {
           if (homes[homeId] === true && allTokens[uid]) {
-            for (const rec of Object.values(allTokens[uid])) {
+            for (const [deviceKey, rec] of Object.entries(allTokens[uid])) {
               if (rec.token && !rec.token.startsWith('ExponentPushToken')) {
-                fcmTokens.push(rec.token);
+                tokenEntries.push({
+                  token: rec.token,
+                  path: `notificationTokens/${uid}/${deviceKey}`,
+                });
               }
             }
           }
         }
 
-        if (fcmTokens.length > 0) {
+        const uniqueTokens = [...new Set(tokenEntries.map((e) => e.token))];
+        if (uniqueTokens.length > 0) {
           const response = await admin.messaging().sendEachForMulticast({
-            tokens: fcmTokens,
+            tokens: uniqueTokens,
             notification: { title, body },
+            android: { notification: { channelId: 'alerts' } },
             data,
           });
+          // Tự động dọn sạch các FCM token đã hết hạn hoặc bị gỡ app khỏi Firebase
+          let removedDeadToken = false;
+          response.responses.forEach((res, idx) => {
+            const errCode = res.error?.code;
+            if (
+              !res.success &&
+              (errCode === 'messaging/registration-token-not-registered' ||
+                errCode === 'messaging/invalid-registration-token')
+            ) {
+              removedDeadToken = true;
+              const deadToken = uniqueTokens[idx];
+              tokenEntries
+                .filter((e) => e.token === deadToken)
+                .forEach((e) => {
+                  this.bgWrite(this.db!.ref(e.path).remove());
+                });
+            }
+          });
+          if (removedDeadToken) {
+            this.fcmDirectoryCache = null;
+          }
           return response.successCount;
         }
       } catch (err) {

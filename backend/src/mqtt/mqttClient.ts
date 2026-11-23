@@ -16,6 +16,7 @@ import { MqttCommandPayload } from '../types/smarthome';
 export class MqttBridgeService {
   private client: MqttClient | null = null;
   private connected = false;
+  private lastLiveEsp32PacketAt = 0;
 
   constructor(
     private readonly cmdSvc: CommandService = commandService,
@@ -52,7 +53,11 @@ export class MqttBridgeService {
 
     this.client.on('connect', () => {
       this.connected = true;
+      this.lastLiveEsp32PacketAt = 0;
       console.log(`[MQTT Bridge] Đã kết nối TLS tới HiveMQ Cloud (${brokerUrl}) với ID: ${clientId}`);
+      this.sensorAlertSvc
+        .markEsp32Offline(this.homeId, 'waiting_for_live_esp32_packet')
+        .catch(() => {});
       this.subscribeAllTopics();
     });
 
@@ -68,8 +73,9 @@ export class MqttBridgeService {
       console.error('[MQTT Bridge] Lỗi kết nối MQTT:', err.message);
     });
 
-    this.client.on('message', (topic, messageBuffer) => {
-      this.routeIncomingMessage(topic, messageBuffer.toString()).catch((err) => {
+    this.client.on('message', (topic, messageBuffer, packet) => {
+      const isRetained = Boolean(packet?.retain);
+      this.routeIncomingMessage(topic, messageBuffer.toString(), isRetained).catch((err) => {
         console.error(`[MQTT Bridge] Lỗi xử lý bản tin trên topic ${topic}:`, err);
       });
     });
@@ -137,7 +143,11 @@ export class MqttBridgeService {
     });
   }
 
-  public async routeIncomingMessage(topic: string, rawMessage: string): Promise<void> {
+  public async routeIncomingMessage(
+    topic: string,
+    rawMessage: string,
+    isRetained = false
+  ): Promise<void> {
     let parsedJson: unknown;
     try {
       parsedJson = JSON.parse(rawMessage);
@@ -146,34 +156,37 @@ export class MqttBridgeService {
       return;
     }
 
+    const markLiveIfRealPacket = async () => {
+      if (!isRetained) {
+        this.lastLiveEsp32PacketAt = Date.now();
+        await this.sensorAlertSvc.touchEsp32Live(this.homeId);
+      }
+    };
+
     const stateTopicRegex = new RegExp(`^smarthome/${this.homeId}/(light1|light2|fan1|door1)/state$`);
     if (stateTopicRegex.test(topic)) {
       const validated = mqttStateAckSchema.parse(parsedJson);
+      await markLiveIfRealPacket();
       await this.cmdSvc.handleDeviceStateAck(validated);
       return;
     }
 
-    if (topic === `smarthome/${this.homeId}/sensors/temperature`) {
-      const validated = mqttTemperatureSchema.parse(parsedJson);
-      await this.sensorAlertSvc.handleTemperature(validated);
-      return;
-    }
+    // Bảng định tuyến cảm biến theo Open/Closed Principle (dễ mở rộng thêm cảm biến mới)
+    const sensorTopicHandlers: Record<string, (raw: unknown) => Promise<unknown>> = {
+      [`smarthome/${this.homeId}/sensors/temperature`]: (raw) =>
+        this.sensorAlertSvc.handleTemperature(mqttTemperatureSchema.parse(raw)),
+      [`smarthome/${this.homeId}/sensors/humidity`]: (raw) =>
+        this.sensorAlertSvc.handleHumidity(mqttHumiditySchema.parse(raw)),
+      [`smarthome/${this.homeId}/sensors/motion`]: (raw) =>
+        this.sensorAlertSvc.handleMotion(mqttMotionSchema.parse(raw)),
+      [`smarthome/${this.homeId}/sensors/smoke`]: (raw) =>
+        this.sensorAlertSvc.handleSmoke(mqttSmokeSchema.parse(raw)),
+    };
 
-    if (topic === `smarthome/${this.homeId}/sensors/humidity`) {
-      const validated = mqttHumiditySchema.parse(parsedJson);
-      await this.sensorAlertSvc.handleHumidity(validated);
-      return;
-    }
-
-    if (topic === `smarthome/${this.homeId}/sensors/motion`) {
-      const validated = mqttMotionSchema.parse(parsedJson);
-      await this.sensorAlertSvc.handleMotion(validated);
-      return;
-    }
-
-    if (topic === `smarthome/${this.homeId}/sensors/smoke`) {
-      const validated = mqttSmokeSchema.parse(parsedJson);
-      await this.sensorAlertSvc.handleSmoke(validated);
+    const sensorHandler = sensorTopicHandlers[topic];
+    if (sensorHandler) {
+      await markLiveIfRealPacket();
+      await sensorHandler(parsedJson);
       return;
     }
 
@@ -185,6 +198,21 @@ export class MqttBridgeService {
 
     if (topic === `smarthome/${this.homeId}/esp32/status`) {
       const validated = mqttEsp32StatusSchema.parse(parsedJson);
+      if (!validated.online) {
+        this.lastLiveEsp32PacketAt = 0;
+        await this.sensorAlertSvc.handleEsp32Status(validated);
+        return;
+      }
+      if (isRetained && this.lastLiveEsp32PacketAt === 0) {
+        // Bản tin retained cũ trên broker từ phiên trước: chỉ lấy rssi/firmware, giữ online = false chờ gói tin live
+        await this.sensorAlertSvc.handleEsp32Status({
+          ...validated,
+          online: false,
+          reason: 'retained_status_waiting_live',
+        });
+        return;
+      }
+      this.lastLiveEsp32PacketAt = Date.now();
       await this.sensorAlertSvc.handleEsp32Status(validated);
       return;
     }

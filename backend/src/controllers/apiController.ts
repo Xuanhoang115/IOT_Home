@@ -11,6 +11,7 @@ import {
 } from '../schemas/validation';
 import { CommandService, commandService } from '../services/commandService';
 import { FirebaseService, firebaseService } from '../services/firebaseService';
+import { DeviceId } from '../types/smarthome';
 
 export class ApiController {
   constructor(
@@ -18,6 +19,18 @@ export class ApiController {
     private readonly cmdSvc: CommandService = commandService,
     private readonly mqttSvc: MqttBridgeService = mqttBridgeService
   ) {}
+
+  private resolveHomeId(req: Request): string {
+    return req.homeId || env.HOME_ID;
+  }
+
+  private parseDeviceIdOrThrow(rawId: unknown): DeviceId {
+    const parsedId = deviceIdSchema.safeParse(rawId);
+    if (!parsedId.success) {
+      throw new ApiError(404, `Thiết bị '${String(rawId)}' không tồn tại`, 'DEVICE_NOT_FOUND');
+    }
+    return parsedId.data;
+  }
 
   public getHealth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -40,9 +53,63 @@ export class ApiController {
     }
   };
 
+  /**
+   * Endpoint tổng hợp: gộp 6 API (/health, /rooms, /devices, /sensors/latest, /alerts, /history)
+   * thành 1 HTTP request duy nhất để giảm 6x overhead mạng & auth middleware trên Mobile/Web.
+   */
+  public getSnapshot = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const homeId = this.resolveHomeId(req);
+      const [home, rooms, devices, latest, recentReadings, alerts, activityLogs, commands] =
+        await Promise.all([
+          this.store.getHome(homeId),
+          this.store.getRooms(homeId),
+          this.store.getDevices(homeId),
+          this.store.getLatestSensors(homeId),
+          this.store.getRecentSensorReadings(homeId, 20),
+          this.store.getAlerts(homeId, 50),
+          this.store.getActivityLogs(homeId, 50),
+          this.store.getRecentCommands(homeId, 50),
+        ]);
+
+      const enrichedRooms = rooms.map((room) => ({
+        ...room,
+        devices: devices.filter((dev) => dev.roomId === room.id),
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          health: {
+            status: 'ok',
+            homeId,
+            storageMode: this.store.getMode(),
+            mqttConnected: this.mqttSvc.isConnected(),
+            esp32Status: home?.esp32Status ?? null,
+            systemMode: home?.systemMode ?? 'MANUAL',
+            timestamp: Date.now(),
+          },
+          rooms: enrichedRooms,
+          devices,
+          sensors: {
+            latest,
+            recentReadings,
+          },
+          alerts,
+          history: {
+            activityLogs,
+            commands,
+          },
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
   public getRooms = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const [rooms, devices] = await Promise.all([
         this.store.getRooms(homeId),
         this.store.getDevices(homeId),
@@ -64,7 +131,7 @@ export class ApiController {
 
   public getDevices = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const roomFilter = req.query.roomId as string | undefined;
       const devices = await this.store.getDevices(homeId);
       const filtered = roomFilter ? devices.filter((d) => d.roomId === roomFilter) : devices;
@@ -80,15 +147,12 @@ export class ApiController {
 
   public getDeviceById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
-      const parsedId = deviceIdSchema.safeParse(req.params.id);
-      if (!parsedId.success) {
-        throw new ApiError(404, `Thiết bị '${String(req.params.id)}' không tồn tại`, 'DEVICE_NOT_FOUND');
-      }
+      const homeId = this.resolveHomeId(req);
+      const deviceId = this.parseDeviceIdOrThrow(req.params.id);
 
-      const device = await this.store.getDevice(homeId, parsedId.data);
+      const device = await this.store.getDevice(homeId, deviceId);
       if (!device) {
-        throw new ApiError(404, `Thiết bị '${parsedId.data}' không tồn tại`, 'DEVICE_NOT_FOUND');
+        throw new ApiError(404, `Thiết bị '${deviceId}' không tồn tại`, 'DEVICE_NOT_FOUND');
       }
 
       res.json({
@@ -106,19 +170,16 @@ export class ApiController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
-      const parsedId = deviceIdSchema.safeParse(req.params.id);
-      if (!parsedId.success) {
-        throw new ApiError(404, `Thiết bị '${String(req.params.id)}' không tồn tại`, 'DEVICE_NOT_FOUND');
-      }
+      const homeId = this.resolveHomeId(req);
+      const deviceId = this.parseDeviceIdOrThrow(req.params.id);
 
       const body = commandBodySchema.parse(req.body);
-      const validatedDesiredState = validateDeviceDesiredState(parsedId.data, body.desiredState);
+      const validatedDesiredState = validateDeviceDesiredState(deviceId, body.desiredState);
       const requestedBy = req.user?.uid ?? 'unknown_user';
 
       const result = await this.cmdSvc.sendDeviceCommand({
         homeId,
-        deviceId: parsedId.data,
+        deviceId,
         desiredState: validatedDesiredState,
         requestedBy,
       });
@@ -143,8 +204,23 @@ export class ApiController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const body = systemModeUpdateSchema.parse(req.body);
+      const fan = await this.store.getDevice(homeId, 'fan1');
+      if (!fan) {
+        throw new ApiError(404, 'Không tìm thấy quạt fan1.', 'DEVICE_NOT_FOUND');
+      }
+      if (fan.reportedState.mode !== body.systemMode || fan.desiredState.mode !== body.systemMode) {
+        if (this.store.getMode() === 'firebase-admin' && !this.mqttSvc.isConnected()) {
+          throw new ApiError(503, 'Backend chưa kết nối MQTT.', 'MQTT_DISCONNECTED');
+        }
+        await this.cmdSvc.sendDeviceCommand({
+          homeId,
+          deviceId: 'fan1',
+          desiredState: { mode: body.systemMode },
+          requestedBy: req.user?.uid ?? 'unknown_user',
+        });
+      }
       const updatedHome = await this.store.updateHomeMode(
         homeId,
         body.systemMode,
@@ -166,7 +242,7 @@ export class ApiController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const [latest, readings] = await Promise.all([
         this.store.getLatestSensors(homeId),
         this.store.getRecentSensorReadings(homeId, 20),
@@ -186,7 +262,7 @@ export class ApiController {
 
   public getAlerts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const limit = Number(req.query.limit || 50);
       const alerts = await this.store.getAlerts(homeId, limit);
 
@@ -205,7 +281,7 @@ export class ApiController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const alertId = String(req.params.id || '');
       const updated = await this.store.acknowledgeAlert(homeId, alertId);
       if (!updated) {
@@ -223,7 +299,7 @@ export class ApiController {
 
   public getHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const homeId = req.homeId || env.HOME_ID;
+      const homeId = this.resolveHomeId(req);
       const limit = Number(req.query.limit || 50);
       const [activityLogs, recentCommands] = await Promise.all([
         this.store.getActivityLogs(homeId, limit),

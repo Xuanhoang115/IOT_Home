@@ -62,7 +62,7 @@ Xây dựng hệ thống **Smart Home IoT** hoàn chỉnh (Phần cứng mô hì
   - Viết bộ Unit Test & Integration Test bằng Vitest + Supertest (`backend/tests/`).
 - [x] **PHASE 5 – Tích hợp Firebase Admin SDK, Auth Middleware & Seed Data**:
   - Tích hợp `firebase-admin` trong `backend/src/services/firebaseService.ts` kèm cơ chế fallback tự động sang `In-Memory Store` (nạp sẵn dữ liệu mẫu `home1`) khi người dùng chưa điền khóa thật vào `backend/.env`.
-  - Hoàn thiện `scripts/seed-firebase.ts` để đẩy 10 nhánh dữ liệu mẫu lên Firebase Realtime Database.
+  - Hoàn thiện `backend/scripts/seed-firebase.ts` để đẩy 10 nhánh dữ liệu mẫu lên Firebase Realtime Database.
 - [x] **PHASE 6 – Xây dựng Ứng dụng Mobile React Native (Expo SDK 54 + TypeScript)**:
   - Chuẩn hóa cấu trúc `mobile/` theo đúng Master Prompt (`mobile/app/`, `mobile/components/`, `mobile/contexts/`, `mobile/hooks/`, `mobile/services/`, `mobile/types/`, `mobile/App.tsx`, `mobile/package.json`, `mobile/tsconfig.json`).
   - Hoàn thiện đủ 10 màn hình chuẩn: `SplashScreen`, `LoginScreen`, `RegisterScreen`, `DashboardScreen`, `DevicesScreen`, `RoomDetailScreen`, `SensorsScreen`, `AlertsScreen`, `HistoryScreen`, `SettingsScreen`.
@@ -72,7 +72,7 @@ Xây dựng hệ thống **Smart Home IoT** hoàn chỉnh (Phần cứng mô hì
 ---
 
 ## 6. Phần Chưa Hoàn Thành
-- [ ] **PHASE 7**: Viết hoàn chỉnh Firmware ESP32 (`firmware/esp32-smarthome/`).
+- [ ] **PHASE 7**: Sketch ESP32 đã có mã và kiểm tra thời hạn lệnh. Còn Verify, nạp bo và thử MQTT với HiveMQ thật. Backend đã qua TypeScript typecheck và 12 bài Vitest cục bộ. Các bài này không biên dịch sketch.
 - [ ] **PHASE 8 – 12**: Tích hợp điều khiển, cảm biến/cảnh báo, thông báo đẩy, kiểm thử toàn diện và đóng gói báo cáo bảo vệ.
 
 ---
@@ -149,4 +149,4 @@ npm start
 ---
 
 ## 10. Bước Tiếp Theo
-Đã hoàn thành **Phase 1 → Phase 6**. Bước tiếp theo là triển khai **PHASE 7 (ESP32 Firmware C++ / PlatformIO / Arduino trong `firmware/esp32-smarthome/`)** và kiểm thử tích hợp ở **Phase 8 – 12**.
+Hoàn tất xác minh Phase 7 theo README firmware. Phase 8 cần kiểm thử tích hợp với thiết bị thật. App TypeScript hiện dùng React Navigation, token dev và polling REST. Expo Router, Firebase Auth/RTDB phía mobile và push vẫn còn thiếu so với yêu cầu.

@@ -13,8 +13,16 @@ import {
   SystemMode,
 } from '../types/smarthome';
 
-const DEFAULT_API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000';
+import { firebaseAuth } from './firebaseAuth';
+
+function resolveDefaultApiBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return `http://${window.location.hostname}:3000`;
+  }
+  return process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000';
+}
+
+const DEFAULT_API_BASE_URL = resolveDefaultApiBaseUrl();
 
 export class SmartHomeApiClient {
   private baseUrl: string = DEFAULT_API_BASE_URL;
@@ -33,8 +41,11 @@ export class SmartHomeApiClient {
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const token = firebaseAuth
+      ? await firebaseAuth.currentUser?.getIdToken()
+      : this.token;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 4500);
+    const timer = setTimeout(() => controller.abort(), 12000);
 
     try {
       const response = await fetch(`${this.baseUrl}${path}`, {
@@ -42,7 +53,7 @@ export class SmartHomeApiClient {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options.headers || {}),
         },
       });
@@ -67,6 +78,30 @@ export class SmartHomeApiClient {
     systemMode: SystemMode;
   }> {
     return this.request('/api/health');
+  }
+
+  public async getSnapshot(): Promise<{
+    health: {
+      status: string;
+      homeId: string;
+      storageMode: string;
+      mqttConnected: boolean;
+      esp32Status: Esp32StatusRecord | null;
+      systemMode: SystemMode;
+    };
+    rooms: RoomRecord[];
+    devices: DeviceRecord[];
+    sensors: {
+      latest: LatestSensorsRecord | null;
+      recentReadings: SensorReadingRecord[];
+    };
+    alerts: AlertRecord[];
+    history: {
+      activityLogs: ActivityLogRecord[];
+      commands: CommandRecord[];
+    };
+  }> {
+    return this.request('/api/snapshot');
   }
 
   public async getRooms(): Promise<RoomRecord[]> {

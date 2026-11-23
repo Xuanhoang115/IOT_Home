@@ -1,10 +1,20 @@
-import path from 'path';
-import dotenv from 'dotenv';
 import admin from 'firebase-admin';
-import { createInitialSeedData } from '../backend/src/config/seedData';
-import { env, isFirebaseAdminConfigured } from '../backend/src/config/env';
+import { createInitialSeedData } from '../src/config/seedData';
+import { env, isFirebaseAdminConfigured } from '../src/config/env';
 
-dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
+function fillMissing(current: unknown, defaults: unknown): unknown {
+  if (current == null) return defaults;
+  if (typeof current !== 'object' || typeof defaults !== 'object' ||
+      defaults === null || Array.isArray(current) || Array.isArray(defaults)) {
+    return current;
+  }
+
+  const merged = { ...current } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(defaults)) {
+    merged[key] = fillMissing(merged[key], value);
+  }
+  return merged;
+}
 
 async function seedFirebaseDatabase(): Promise<void> {
   console.log('==========================================================');
@@ -46,7 +56,9 @@ async function seedFirebaseDatabase(): Promise<void> {
   const db = admin.database();
   console.log(`Đang ghi bộ dữ liệu khởi tạo của '${homeId}' lên ${env.FIREBASE_DATABASE_URL}...`);
 
-  await db.ref('/').update(seedPayload);
+  for (const [branch, defaults] of Object.entries(seedPayload)) {
+    await db.ref(branch).transaction((current: unknown) => fillMissing(current, defaults));
+  }
 
   console.log('[HOÀN TẤT] Đã seed đầy đủ 10 nhánh dữ liệu lên Firebase Realtime Database!');
   process.exit(0);

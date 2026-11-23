@@ -239,4 +239,24 @@ describe('Integration Tests - Backend REST API, Auth, MQTT Bridge & Simulator E2
     expect(ackRes.status).toBe(200);
     expect(ackRes.body.data.acknowledged).toBe(true);
   });
+
+  it('7. Endpoint tổng hợp GET /api/snapshot trả đầy đủ 6 phần dữ liệu và throttle ghi esp32Status', async () => {
+    const app = createApp({ store, cmdSvc, mqttSvc });
+    const snapRes = await request(app).get('/api/snapshot').set('Authorization', MEMBER_TOKEN);
+    expect(snapRes.status).toBe(200);
+    expect(snapRes.body.data.health.status).toBe('ok');
+    expect(Array.isArray(snapRes.body.data.rooms)).toBe(true);
+    expect(Array.isArray(snapRes.body.data.devices)).toBe(true);
+    expect(snapRes.body.data.sensors.latest).toBeTruthy();
+    expect(Array.isArray(snapRes.body.data.alerts)).toBe(true);
+    expect(Array.isArray(snapRes.body.data.history.activityLogs)).toBe(true);
+
+    // Gửi 20 heartbeat giữ nguyên online=true trong cùng 1 giây -> chỉ flush DB 1 lần, bỏ qua 19 lần lặp
+    for (let i = 0; i < 20; i++) {
+      await store.updateEsp32Status('home1', { online: true, rssi: -55, lastSeen: Date.now() });
+    }
+    const stats = store.getPerfStats();
+    expect(stats.esp32StatusDbWrites).toBe(1);
+    expect(stats.esp32StatusDbWritesSkipped).toBe(19);
+  });
 });

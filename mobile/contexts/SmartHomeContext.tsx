@@ -1,5 +1,24 @@
-import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import SystemModeSecurityModal from '../components/SystemModeSecurityModal';
+import FeedbackToast, { ToastMessage, ToastTone } from '../components/ui/FeedbackToast';
+import {
+  createInitialActivityLogs,
+  createInitialAlerts,
+  createInitialDevices,
+  createInitialEsp32Status,
+  createInitialSensorReadings,
+  createInitialSensors,
+  DEFAULT_AUTO_CONFIG,
+  DEFAULT_HOME_ID,
+  DEMO_ACCOUNTS,
+  INITIAL_ROOMS,
+  MAX_LOCAL_ACTIVITY_LOGS,
+  MAX_LOCAL_SENSOR_READINGS,
+} from '../constants/defaults';
 import { apiClient } from '../services/api';
+import { directCloudMqtt } from '../services/directCloudMqtt';
+import { firebaseAuth } from '../services/firebaseAuth';
 import {
   ActivityLogRecord,
   AlertRecord,
@@ -15,114 +34,21 @@ import {
   SensorReadingRecord,
   SystemMode,
 } from '../types/smarthome';
+import {
+  applyPendingDesiredState,
+  applyReportedStateToDevice,
+  buildSimulatedReportedState,
+  describeDeviceAction,
+  extractAutoConfigPatch,
+  isValidSystemMode,
+  parseMqttAlertRecord,
+  parseMqttReportedState,
+  readStoredSecurityPin,
+  resolveActorLabel,
+  saveStoredSecurityPin,
+} from '../utils/deviceStateMapper';
 
-const INITIAL_ROOMS: RoomRecord[] = [
-  {
-    id: 'living_room',
-    name: 'Phòng khách',
-    icon: '🛋️',
-    deviceIds: ['light1', 'fan1', 'door1'],
-  },
-  {
-    id: 'bedroom',
-    name: 'Phòng ngủ',
-    icon: '🛏️',
-    deviceIds: ['light2'],
-  },
-  {
-    id: 'kitchen',
-    name: 'Phòng bếp',
-    icon: '🍳',
-    deviceIds: [],
-  },
-];
-
-const INITIAL_DEVICES: DeviceRecord[] = [
-  {
-    id: 'light1',
-    name: 'Đèn Phòng khách',
-    type: 'light',
-    roomId: 'living_room',
-    desiredState: { power: 'OFF', mode: 'MANUAL' },
-    reportedState: { power: 'OFF', mode: 'MANUAL' },
-    lastCommandStatus: 'ACKED',
-    lastUpdated: Date.now(),
-  },
-  {
-    id: 'light2',
-    name: 'Đèn Phòng ngủ',
-    type: 'light',
-    roomId: 'bedroom',
-    desiredState: { power: 'OFF', mode: 'MANUAL' },
-    reportedState: { power: 'OFF', mode: 'MANUAL' },
-    lastCommandStatus: 'ACKED',
-    lastUpdated: Date.now(),
-  },
-  {
-    id: 'fan1',
-    name: 'Quạt Thông gió',
-    type: 'fan',
-    roomId: 'living_room',
-    desiredState: { power: 'OFF', mode: 'MANUAL' },
-    reportedState: { power: 'OFF', mode: 'MANUAL' },
-    lastCommandStatus: 'ACKED',
-    lastUpdated: Date.now(),
-  },
-  {
-    id: 'door1',
-    name: 'Cửa Chính (Servo SG90)',
-    type: 'door',
-    roomId: 'living_room',
-    desiredState: { doorState: 'CLOSED', targetAngle: 0 },
-    reportedState: {
-      doorState: 'CLOSED',
-      currentAngle: 0,
-      positionVerified: false,
-    },
-    lastCommandStatus: 'ACKED',
-    lastUpdated: Date.now(),
-  },
-];
-
-const INITIAL_SENSORS: LatestSensorsRecord = {
-  temperature: { value: 28.6, unit: 'C', roomId: 'living_room', updatedAt: Date.now() },
-  humidity: { value: 65.2, unit: '%', roomId: 'living_room', updatedAt: Date.now() },
-  motion: { motionDetected: false, roomId: 'living_room', updatedAt: Date.now() },
-  smoke: {
-    rawAdc: 960,
-    smokeLevelPercent: 23.4,
-    abnormal: false,
-    roomId: 'kitchen',
-    updatedAt: Date.now(),
-  },
-};
-
-const DEMO_ACCOUNTS: Record<string, AuthUser & { password: string }> = {
-  'student1@smarthome.edu.vn': {
-    uid: 'uid_student_01',
-    email: 'student1@smarthome.edu.vn',
-    displayName: 'Nguyễn Văn A (TV1 - Owner)',
-    role: 'owner',
-    token: 'dev-token:uid_student_01',
-    password: '123456',
-  },
-  admin: {
-    uid: 'uid_student_01',
-    email: 'student1@smarthome.edu.vn',
-    displayName: 'Nguyễn Văn A (TV1 - Owner)',
-    role: 'owner',
-    token: 'dev-token:uid_student_01',
-    password: '123456',
-  },
-  'student2@smarthome.edu.vn': {
-    uid: 'uid_student_02',
-    email: 'student2@smarthome.edu.vn',
-    displayName: 'Trần Thị B (TV2 - Member)',
-    role: 'member',
-    token: 'dev-token:uid_student_02',
-    password: '123456',
-  },
-};
+const STATE_TOPIC_REGEX = /^smarthome\/[^/]+\/(light1|light2|fan1|door1)\/state$/;
 
 export interface SmartHomeContextValue {
   user: AuthUser | null;
@@ -151,7 +77,9 @@ export interface SmartHomeContextValue {
   sendDeviceCommand: (deviceId: DeviceId, desiredState: DesiredState) => Promise<void>;
   toggleSystemMode: (nextMode: SystemMode, nextConfig?: Partial<AutoConfig>) => Promise<void>;
   acknowledgeAlert: (alertId: string) => Promise<void>;
+  muteBuzzer: () => void;
   dismissBannerAlert: () => void;
+  showToast: (text: string, tone?: ToastTone) => void;
   triggerDemoSmokeAlert: () => void;
   triggerDemoSensorUpdate: (tempC: number, smokeAdc: number, motion: boolean) => void;
   setSimulateEsp32Offline: (offline: boolean) => void;
@@ -165,87 +93,155 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(apiClient.getBaseUrl());
   const [systemMode, setSystemMode] = useState<SystemMode>('MANUAL');
-  const [autoConfig, setAutoConfig] = useState<AutoConfig>({
-    tempThresholdHigh: 31.0,
-    tempThresholdLow: 29.5,
-    smokeThresholdAdc: 2200,
-    motionAutoLight: false,
-  });
+  const [securityPin, setSecurityPin] = useState<string>(readStoredSecurityPin);
+  const [modeModalVisible, setModeModalVisible] = useState<boolean>(false);
+  const [pendingTargetMode, setPendingTargetMode] = useState<SystemMode>('AUTO');
+  const [pendingDraftConfig, setPendingDraftConfig] = useState<AutoConfig | undefined>(undefined);
+  const [autoConfig, setAutoConfig] = useState<AutoConfig>(DEFAULT_AUTO_CONFIG);
   const [simulateEsp32Offline, setSimulateEsp32OfflineState] = useState<boolean>(false);
-  const [esp32Status, setEsp32Status] = useState<Esp32StatusRecord>({
-    online: true,
-    lastSeen: Date.now(),
-    rssi: -56,
-    firmwareVersion: '1.0.0',
-  });
+  const [esp32Status, setEsp32Status] = useState<Esp32StatusRecord>(createInitialEsp32Status);
   const [rooms, setRooms] = useState<RoomRecord[]>(INITIAL_ROOMS);
-  const [devices, setDevices] = useState<DeviceRecord[]>(INITIAL_DEVICES);
-  const [latestSensors, setLatestSensors] = useState<LatestSensorsRecord>(INITIAL_SENSORS);
-  const [sensorReadings, setSensorReadings] = useState<SensorReadingRecord[]>([
-    {
-      temperature: 28.6,
-      humidity: 65.2,
-      smokeRawAdc: 960,
-      motionDetected: false,
-      timestamp: Date.now() - 120000,
-    },
-  ]);
-  const [alerts, setAlerts] = useState<AlertRecord[]>([
-    {
-      id: 'alt_seed_mq2_demo',
-      type: 'SMOKE_DETECTED',
-      severity: 'CRITICAL',
-      roomId: 'kitchen',
-      deviceId: 'mq2_kitchen',
-      message: 'Bản ghi mẫu: Phát hiện nồng độ khói/khí vượt ngưỡng tại Phòng bếp (ADC: 2480/2200).',
-      acknowledged: true,
-      buzzerTriggered: true,
-      autoFanTriggered: true,
-      timestamp: Date.now() - 3600000,
-    },
-  ]);
+  const [devices, setDevices] = useState<DeviceRecord[]>(createInitialDevices);
+  const [latestSensors, setLatestSensors] = useState<LatestSensorsRecord>(createInitialSensors);
+  const [sensorReadings, setSensorReadings] = useState<SensorReadingRecord[]>(
+    createInitialSensorReadings
+  );
+  const [alerts, setAlerts] = useState<AlertRecord[]>(createInitialAlerts);
   const [activeBannerAlert, setActiveBannerAlert] = useState<AlertRecord | null>(null);
-  const [activityLogs, setActivityLogs] = useState<ActivityLogRecord[]>([
-    {
-      id: 'log_init_001',
-      deviceId: 'esp32_main',
-      action: 'BOOT_SYNC_OK',
-      source: 'BOOT_SYNC',
-      actorUid: 'system',
-      timestamp: Date.now() - 600000,
-    },
-  ]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogRecord[]>(createInitialActivityLogs);
   const [commands, setCommands] = useState<CommandRecord[]>([]);
+  const [mqttLive, setMqttLive] = useState<boolean>(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast(null);
+  }, []);
+
+  const showToast = useCallback((text: string, tone: ToastTone = 'info') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ id: Date.now(), text, tone });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 2800);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const customAccountsRef = useRef<Record<string, AuthUser & { password: string }>>({
     ...DEMO_ACCOUNTS,
   });
+  const isRefreshingRef = useRef<boolean>(false);
+  const lastCommandSentAtRef = useRef<number>(0);
+  const lastDirectPacketAtRef = useRef<number>(0);
+  const mqttLiveRef = useRef<boolean>(false);
+
+  const appendActivityLog = useCallback((entry: ActivityLogRecord) => {
+    setActivityLogs((prev) => {
+      if (
+        entry.requestId &&
+        prev.some((l) => l.requestId === entry.requestId && l.deviceId === entry.deviceId)
+      ) {
+        return prev;
+      }
+      return [entry, ...prev.slice(0, MAX_LOCAL_ACTIVITY_LOGS - 1)];
+    });
+  }, []);
+
+  const currentActorLabel = user?.email || user?.uid || 'owner';
+
+  // Tự động khôi phục phiên đăng nhập Firebase (hoạt động cả khi tắt Backend)
+  useEffect(() => {
+    if (!firebaseAuth) return;
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (account) => {
+      if (!account) return;
+      try {
+        const idToken = await account.getIdToken();
+        apiClient.setToken(idToken);
+        setUser({
+          uid: account.uid,
+          email: account.email ?? 'admin@gmail.com',
+          displayName: account.displayName ?? account.email ?? 'Chủ nhà (Owner)',
+          role: 'owner',
+          token: idToken,
+        });
+      } catch {
+        // Bỏ qua lỗi lấy token nền
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const refreshAll = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    const fetchStartedAt = Date.now();
     try {
-      const health = await apiClient.getHealth();
-      setBackendConnected(true);
-      setSystemMode(health.systemMode);
-      if (health.esp32Status && !simulateEsp32Offline) {
-        setEsp32Status(health.esp32Status);
+      let snapshot;
+      try {
+        // Tối ưu 1-request Snapshot (thay cho 6 HTTP request + 7x getIdToken)
+        snapshot = await apiClient.getSnapshot();
+      } catch {
+        // Fallback tương thích ngược nếu Backend đang chạy bản cũ chưa có /api/snapshot
+        const [health, remoteRooms, remoteDevices, remoteSensors, remoteAlerts, remoteHistory] =
+          await Promise.all([
+            apiClient.getHealth(),
+            apiClient.getRooms(),
+            apiClient.getDevices(),
+            apiClient.getSensors(),
+            apiClient.getAlerts(),
+            apiClient.getHistory(),
+          ]);
+        snapshot = {
+          health,
+          rooms: remoteRooms,
+          devices: remoteDevices,
+          sensors: remoteSensors,
+          alerts: remoteAlerts,
+          history: remoteHistory,
+        };
       }
 
-      const [remoteRooms, remoteDevices, remoteSensors, remoteAlerts, remoteHistory] =
-        await Promise.all([
-          apiClient.getRooms(),
-          apiClient.getDevices(),
-          apiClient.getSensors(),
-          apiClient.getAlerts(),
-          apiClient.getHistory(),
-        ]);
+      const {
+        health,
+        rooms: remoteRooms,
+        devices: remoteDevices,
+        sensors: remoteSensors,
+        alerts: remoteAlerts,
+        history: remoteHistory,
+      } = snapshot;
 
+      setBackendConnected(true);
       if (remoteRooms.length > 0) setRooms(remoteRooms);
-      if (remoteDevices.length > 0) setDevices(remoteDevices);
-      if (remoteSensors.latest) setLatestSensors(remoteSensors.latest);
       if (remoteSensors.recentReadings) setSensorReadings(remoteSensors.recentReadings);
+
+      // Khi MQTT realtime đang sống: không ghi đè thiết bị/cảm biến bằng dữ liệu polling cũ hơn
+      if (!mqttLiveRef.current) {
+        setSystemMode(health.systemMode);
+        if (health.esp32Status && !simulateEsp32Offline) {
+          setEsp32Status(health.esp32Status);
+        }
+        if (remoteDevices.length > 0 && fetchStartedAt >= lastCommandSentAtRef.current) {
+          setDevices(remoteDevices);
+        }
+        if (remoteSensors.latest) setLatestSensors(remoteSensors.latest);
+      }
+
       if (remoteAlerts) {
         setAlerts(remoteAlerts);
-        const unacked = remoteAlerts.find((a) => !a.acknowledged && a.severity === 'CRITICAL');
-        if (unacked) setActiveBannerAlert(unacked);
+        const unackedCritical = remoteAlerts.find(
+          (a) => !a.acknowledged && a.severity === 'CRITICAL'
+        );
+        if (unackedCritical) setActiveBannerAlert(unackedCritical);
       }
       if (remoteHistory) {
         setActivityLogs(remoteHistory.activityLogs);
@@ -253,24 +249,211 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } catch {
       setBackendConnected(false);
+    } finally {
+      isRefreshingRef.current = false;
     }
   }, [simulateEsp32Offline]);
 
   useEffect(() => {
+    if (!user) return;
     refreshAll();
-    const interval = setInterval(() => {
-      if (user) {
-        refreshAll();
-      }
-    }, 4000);
+    const interval = setInterval(refreshAll, mqttLive ? 10000 : 1500);
     return () => clearInterval(interval);
-  }, [user, refreshAll]);
+  }, [user, refreshAll, mqttLive]);
+
+  const handleIncomingMqttMessage = useCallback(
+    (topic: string, payload: Record<string, unknown>, isRetained: boolean) => {
+      if (simulateEsp32Offline || topic.endsWith('/set')) return;
+      const now = Date.now();
+
+      const markEsp32Live = () => {
+        if (isRetained) return;
+        lastDirectPacketAtRef.current = now;
+        // Chỉ re-render UI khi chuyển từ Offline -> Online hoặc mỗi 10 giây thay vì mỗi gói tin 1-3 giây
+        setEsp32Status((prev) =>
+          prev.online && now - prev.lastSeen < 10000
+            ? prev
+            : { ...prev, online: true, lastSeen: now }
+        );
+      };
+
+      const stateMatch = topic.match(STATE_TOPIC_REGEX);
+      if (stateMatch) {
+        markEsp32Live();
+        const devId = stateMatch[1] as DeviceId;
+        const reportedPatch = parseMqttReportedState(payload);
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.id === devId ? applyReportedStateToDevice(d, reportedPatch, now) : d
+          )
+        );
+        if (!isRetained && !payload.isDuplicate) {
+          const source = (payload.source as ActivityLogRecord['source']) || 'REMOTE_COMMAND';
+          appendActivityLog({
+            id: `log_${now}_${Math.random().toString(16).slice(2, 6)}`,
+            requestId: String(payload.requestId || `mqtt_${now}`),
+            deviceId: devId,
+            action: describeDeviceAction(devId, reportedPatch),
+            source,
+            actorUid: resolveActorLabel(source),
+            timestamp: now,
+          });
+        }
+        return;
+      }
+
+      if (topic.endsWith('/sensors/temperature') && typeof payload.value === 'number') {
+        markEsp32Live();
+        const nextVal = Number(payload.value);
+        setLatestSensors((prev) =>
+          prev.temperature.value === nextVal
+            ? prev
+            : { ...prev, temperature: { ...prev.temperature, value: nextVal, updatedAt: now } }
+        );
+        return;
+      }
+
+      if (topic.endsWith('/sensors/humidity') && typeof payload.value === 'number') {
+        markEsp32Live();
+        const nextVal = Number(payload.value);
+        setLatestSensors((prev) =>
+          prev.humidity.value === nextVal
+            ? prev
+            : { ...prev, humidity: { ...prev.humidity, value: nextVal, updatedAt: now } }
+        );
+        return;
+      }
+
+      if (topic.endsWith('/sensors/motion') && typeof payload.motionDetected === 'boolean') {
+        markEsp32Live();
+        const nextMotion = Boolean(payload.motionDetected);
+        setLatestSensors((prev) =>
+          prev.motion.motionDetected === nextMotion
+            ? prev
+            : { ...prev, motion: { ...prev.motion, motionDetected: nextMotion, updatedAt: now } }
+        );
+        return;
+      }
+
+      if (topic.endsWith('/sensors/smoke') && typeof payload.rawAdc === 'number') {
+        markEsp32Live();
+        const nextRaw = Number(payload.rawAdc);
+        const nextPct = Number(payload.smokeLevelPercent ?? 0);
+        const nextAbn = Boolean(payload.abnormal);
+        setLatestSensors((prev) =>
+          prev.smoke.rawAdc === nextRaw && prev.smoke.abnormal === nextAbn
+            ? prev
+            : {
+                ...prev,
+                smoke: {
+                  ...prev.smoke,
+                  rawAdc: nextRaw,
+                  smokeLevelPercent: nextPct,
+                  abnormal: nextAbn,
+                  updatedAt: now,
+                },
+              }
+        );
+        return;
+      }
+
+      if (topic.endsWith('/esp32/status') && typeof payload.online === 'boolean') {
+        const isOnline = Boolean(payload.online);
+        if (!isOnline) lastDirectPacketAtRef.current = 0;
+        else if (!isRetained) lastDirectPacketAtRef.current = now;
+
+        setEsp32Status((prev) => {
+          const nextOnline = !isOnline ? false : isRetained ? prev.online : true;
+          const nextRssi = typeof payload.rssi === 'number' ? payload.rssi : prev.rssi;
+          const nextFw =
+            typeof payload.firmwareVersion === 'string'
+              ? payload.firmwareVersion
+              : prev.firmwareVersion;
+          if (
+            prev.online === nextOnline &&
+            prev.rssi === nextRssi &&
+            prev.firmwareVersion === nextFw &&
+            now - prev.lastSeen < 10000
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            online: nextOnline,
+            lastSeen: now,
+            rssi: nextRssi,
+            firmwareVersion: nextFw,
+          };
+        });
+        if (isValidSystemMode(payload.systemMode)) {
+          setSystemMode(payload.systemMode);
+        }
+        const configPatch = extractAutoConfigPatch(payload);
+        if (Object.keys(configPatch).length > 0) {
+          setAutoConfig((prev) => ({ ...prev, ...configPatch }));
+        }
+        return;
+      }
+
+      if (topic.endsWith('/alerts') && typeof payload.message === 'string') {
+        const newAlert = parseMqttAlertRecord(payload, now);
+        setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
+        if (newAlert.severity === 'CRITICAL') {
+          setActiveBannerAlert(newAlert);
+        }
+      }
+    },
+    [appendActivityLog, simulateEsp32Offline]
+  );
+
+  // Chỉ kết nối trực tiếp EMQX Cloud WebSocket (:8084) SAU KHI người dùng đã đăng nhập
+  useEffect(() => {
+    if (!user) {
+      mqttLiveRef.current = false;
+      setMqttLive(false);
+      directCloudMqtt.stop();
+      return;
+    }
+
+    directCloudMqtt.start(handleIncomingMqttMessage, (connected) => {
+      mqttLiveRef.current = connected;
+      setMqttLive(connected);
+    });
+
+    return () => {
+      mqttLiveRef.current = false;
+      directCloudMqtt.stop();
+    };
+  }, [user, handleIncomingMqttMessage]);
 
   const login = async (
     emailOrUsername: string,
     password: string
   ): Promise<{ ok: boolean; error?: string }> => {
     const key = emailOrUsername.trim().toLowerCase();
+    if (firebaseAuth) {
+      try {
+        const { user: account } = await signInWithEmailAndPassword(firebaseAuth, key, password);
+        const idToken = await account.getIdToken();
+        apiClient.setToken(idToken);
+        setUser({
+          uid: account.uid,
+          email: account.email ?? key,
+          displayName: account.displayName ?? key,
+          role: 'owner',
+          token: idToken,
+        });
+        refreshAll().catch(() => {});
+        return { ok: true };
+      } catch (error) {
+        await signOut(firebaseAuth);
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Không thể đăng nhập Firebase.',
+        };
+      }
+    }
+
     const account = customAccountsRef.current[key];
     if (!account || account.password !== password) {
       return {
@@ -298,15 +481,12 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     password: string
   ): Promise<{ ok: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
-    if (!fullName.trim()) {
-      return { ok: false, error: 'Vui lòng nhập họ và tên.' };
+    if (firebaseAuth) {
+      return { ok: false, error: 'Hãy dùng tài khoản Firebase đã được cấp quyền vào nhà.' };
     }
-    if (!cleanEmail.includes('@')) {
-      return { ok: false, error: 'Địa chỉ Email không hợp lệ.' };
-    }
-    if (password.length < 6) {
-      return { ok: false, error: 'Mật khẩu phải có ít nhất 6 ký tự.' };
-    }
+    if (!fullName.trim()) return { ok: false, error: 'Vui lòng nhập họ và tên.' };
+    if (!cleanEmail.includes('@')) return { ok: false, error: 'Địa chỉ Email không hợp lệ.' };
+    if (password.length < 6) return { ok: false, error: 'Mật khẩu phải có ít nhất 6 ký tự.' };
 
     const newAccount: AuthUser & { password: string } = {
       uid: 'uid_student_01',
@@ -324,6 +504,7 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const logout = () => {
+    if (firebaseAuth) void signOut(firebaseAuth);
     setUser(null);
   };
 
@@ -337,75 +518,19 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const sendDeviceCommand = async (deviceId: DeviceId, desiredState: DesiredState) => {
-    const now = Date.now();
-    const requestId = `req_${now}_${Math.random().toString(16).slice(2, 6)}`;
-
-    // Bước 1: Chuyển sang trạng thái PENDING (TUYỆT ĐỐI GIỮ NGUYÊN reportedState cũ)
-    setDevices((prev) =>
-      prev.map((dev) =>
-        dev.id === deviceId
-          ? {
-              ...dev,
-              desiredState: { ...dev.desiredState, ...desiredState },
-              lastCommandStatus: 'PENDING',
-              lastRequestId: requestId,
-              lastUpdated: now,
-            }
-          : dev
-      )
-    );
-
-    if (backendConnected && !simulateEsp32Offline) {
-      try {
-        const res = await apiClient.sendCommand(deviceId, desiredState);
-        setDevices((prev) =>
-          prev.map((dev) => (dev.id === deviceId ? res.device : dev))
-        );
-        // Nếu Backend đang chạy chế độ In-Memory chưa nối ESP32 thật, mô phỏng phản hồi ACK sau 600ms
-        setTimeout(() => {
-          setDevices((prev) =>
-            prev.map((dev) => {
-              if (dev.id !== deviceId || dev.lastCommandStatus !== 'PENDING') return dev;
-              const nextReported = {
-                ...dev.reportedState,
-                ...(desiredState.power !== undefined ? { power: desiredState.power } : {}),
-                ...(desiredState.mode !== undefined ? { mode: desiredState.mode } : {}),
-                ...(desiredState.doorState !== undefined
-                  ? {
-                      doorState: desiredState.doorState,
-                      currentAngle: desiredState.doorState === 'OPEN' ? 90 : 0,
-                      positionVerified: false,
-                    }
-                  : {}),
-              };
-              return {
-                ...dev,
-                reportedState: nextReported,
-                lastCommandStatus: 'ACKED',
-                lastUpdated: Date.now(),
-              };
-            })
-          );
-        }, 650);
-        return;
-      } catch {
-        // Fallback xuống mô phỏng local nếu API lỗi
-      }
-    }
-
-    // Nếu đang bật chế độ Giả lập ESP32 Offline -> Báo TIMEOUT sau 3.5 giây (hoặc 8s)
+  const scheduleSimulatorOutcome = (
+    deviceId: DeviceId,
+    desiredState: DesiredState,
+    requestId: string,
+    createdAt: number
+  ) => {
     if (simulateEsp32Offline) {
       setTimeout(() => {
         const timeoutTs = Date.now();
         setDevices((prev) =>
           prev.map((dev) =>
             dev.id === deviceId
-              ? {
-                  ...dev,
-                  lastCommandStatus: 'TIMEOUT',
-                  lastUpdated: timeoutTs,
-                }
+              ? { ...dev, lastCommandStatus: 'TIMEOUT', lastUpdated: timeoutTs }
               : dev
           )
         );
@@ -416,7 +541,7 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             desiredState,
             status: 'TIMEOUT',
             requestedBy: user?.uid || 'uid_student_01',
-            createdAt: now,
+            createdAt,
             errorReason: 'ESP32 Offline (LWT) - Không nhận được phản hồi reportedState',
           },
           ...prev,
@@ -425,56 +550,29 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
-    // Chế độ Simulator phản hồi ACK (reportedState) sau 600ms
     setTimeout(() => {
       const ackTs = Date.now();
       setDevices((prev) =>
-        prev.map((dev) => {
-          if (dev.id !== deviceId) return dev;
-          const nextReported = {
-            ...dev.reportedState,
-            ...(desiredState.power !== undefined ? { power: desiredState.power } : {}),
-            ...(desiredState.mode !== undefined ? { mode: desiredState.mode } : {}),
-            ...(desiredState.doorState !== undefined
-              ? {
-                  doorState: desiredState.doorState,
-                  currentAngle:
-                    desiredState.targetAngle ?? (desiredState.doorState === 'OPEN' ? 90 : 0),
-                  positionVerified: false,
-                }
-              : {}),
-          };
-          return {
-            ...dev,
-            reportedState: nextReported,
-            lastCommandStatus: 'ACKED',
-            lastUpdated: ackTs,
-          };
-        })
+        prev.map((dev) =>
+          dev.id === deviceId
+            ? {
+                ...dev,
+                reportedState: buildSimulatedReportedState(dev, desiredState),
+                lastCommandStatus: 'ACKED',
+                lastUpdated: ackTs,
+              }
+            : dev
+        )
       );
-
-      const actionLabel =
-        deviceId === 'door1'
-          ? desiredState.doorState === 'OPEN'
-            ? 'OPEN_DOOR'
-            : 'CLOSE_DOOR'
-          : desiredState.power === 'ON'
-          ? 'TURN_ON'
-          : 'TURN_OFF';
-
-      setActivityLogs((prev) => [
-        {
-          id: `log_${ackTs}`,
-          requestId,
-          deviceId,
-          action: actionLabel,
-          source: 'REMOTE_COMMAND',
-          actorUid: user?.uid || 'uid_student_01',
-          timestamp: ackTs,
-        },
-        ...prev,
-      ]);
-
+      appendActivityLog({
+        id: `log_${ackTs}`,
+        requestId,
+        deviceId,
+        action: describeDeviceAction(deviceId, desiredState),
+        source: 'REMOTE_COMMAND',
+        actorUid: user?.uid || 'uid_student_01',
+        timestamp: ackTs,
+      });
       setCommands((prev) => [
         {
           requestId,
@@ -482,7 +580,7 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           desiredState,
           status: 'ACKED',
           requestedBy: user?.uid || 'uid_student_01',
-          createdAt: now,
+          createdAt,
           ackedAt: ackTs,
         },
         ...prev,
@@ -490,33 +588,215 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 600);
   };
 
-  const toggleSystemMode = async (nextMode: SystemMode, nextConfig?: Partial<AutoConfig>) => {
-    setSystemMode(nextMode);
-    if (nextConfig) {
-      setAutoConfig((prev) => ({ ...prev, ...nextConfig }));
+  const sendDeviceCommand = async (
+    deviceId: DeviceId,
+    desiredState: DesiredState,
+    isAutoRule = false
+  ) => {
+    if (!isAutoRule && desiredState.mode && desiredState.mode !== systemMode) {
+      setPendingTargetMode(desiredState.mode);
+      setPendingDraftConfig(autoConfig);
+      setModeModalVisible(true);
+      return;
     }
-    if (backendConnected) {
-      try {
-        await apiClient.updateSystemMode(nextMode, nextConfig);
-      } catch {
-        // Ignore offline error
+
+    const now = Date.now();
+    lastCommandSentAtRef.current = now;
+    const requestId = `req_${now}_${Math.random().toString(16).slice(2, 6)}`;
+
+    // Chuyển sang PENDING, giữ nguyên reportedState cũ cho đến khi nhận phản hồi từ ESP32
+    setDevices((prev) =>
+      prev.map((dev) =>
+        dev.id === deviceId
+          ? applyPendingDesiredState(dev, desiredState, requestId, now)
+          : dev
+      )
+    );
+
+    // Ưu tiên 1: WebSocket trực tiếp EMQX Cloud (:8084) (< 40ms)
+    if (!simulateEsp32Offline && directCloudMqtt.isConnected()) {
+      const sent = directCloudMqtt.publishJson(`${deviceId}/set`, {
+        requestId,
+        homeId: DEFAULT_HOME_ID,
+        deviceId,
+        desiredState,
+        requestedBy: user?.uid || 'owner',
+        timestamp: now,
+      });
+      if (sent) {
+        setTimeout(() => {
+          setDevices((prev) =>
+            prev.map((dev) => {
+              if (
+                dev.id === deviceId &&
+                dev.lastRequestId === requestId &&
+                dev.lastCommandStatus === 'PENDING'
+              ) {
+                showToast(`Thiết bị ${dev.name} không phản hồi (Timeout). Kiểm tra ESP32.`, 'error');
+                return { ...dev, lastCommandStatus: 'TIMEOUT' };
+              }
+              return dev;
+            })
+          );
+        }, 8000);
+        return;
       }
     }
+
+    // Ưu tiên 2: Dự phòng qua Backend REST API (:3000)
+    if ((firebaseAuth || backendConnected) && !simulateEsp32Offline) {
+      try {
+        const res = await apiClient.sendCommand(deviceId, desiredState);
+        setDevices((prev) =>
+          prev.map((dev) => {
+            if (dev.id !== deviceId) return dev;
+            if (dev.lastRequestId === requestId && dev.lastCommandStatus === 'ACKED') return dev;
+            return res.device;
+          })
+        );
+        [350, 900, 8200].forEach((delayMs) => {
+          setTimeout(() => refreshAll().catch(() => {}), delayMs);
+        });
+        return;
+      } catch {
+        setDevices((prev) =>
+          prev.map((dev) =>
+            dev.id === deviceId && dev.lastRequestId === requestId
+              ? { ...dev, lastCommandStatus: 'FAILED' }
+              : dev
+          )
+        );
+        return;
+      }
+    }
+
+    scheduleSimulatorOutcome(deviceId, desiredState, requestId, now);
+  };
+
+  const handleChangePin = (oldPin: string, newPin: string): { ok: boolean; error?: string } => {
+    if (oldPin !== securityPin) {
+      return { ok: false, error: '⚠️ Mã PIN hiện tại không chính xác!' };
+    }
+    setSecurityPin(newPin);
+    saveStoredSecurityPin(newPin);
+    appendActivityLog({
+      id: `log_pin_${Date.now()}`,
+      deviceId: 'esp32_main',
+      action: 'SECURITY_PIN_CHANGED_BY_OWNER',
+      source: 'REMOTE_COMMAND',
+      actorUid: currentActorLabel,
+      timestamp: Date.now(),
+    });
+    return { ok: true };
+  };
+
+  const handleBruteForceLockout = () => {
+    appendActivityLog({
+      id: `log_lockout_${Date.now()}`,
+      deviceId: 'esp32_main',
+      action: 'SECURITY_BRUTE_FORCE_LOCKED_30S',
+      source: 'REMOTE_COMMAND',
+      actorUid: user?.email || user?.uid || 'unknown',
+      timestamp: Date.now(),
+    });
+  };
+
+  const applyConfirmedSystemMode = async (
+    nextMode: SystemMode,
+    nextConfig?: Partial<AutoConfig>
+  ) => {
+    setModeModalVisible(false);
+    setSystemMode(nextMode);
+    const mergedCfg: AutoConfig = { ...autoConfig, ...(nextConfig ?? {}) };
+    setAutoConfig(mergedCfg);
+
+    const now = Date.now();
+    directCloudMqtt.publishJson('fan1/set', {
+      requestId: `req_cfg_${now}`,
+      homeId: DEFAULT_HOME_ID,
+      deviceId: 'fan1',
+      desiredState: {
+        mode: nextMode,
+        tempThresholdHigh: mergedCfg.tempThresholdHigh,
+        tempThresholdLow: mergedCfg.tempThresholdLow,
+        smokeThresholdAdc: mergedCfg.smokeThresholdAdc,
+        motionAutoLight: mergedCfg.motionAutoLight,
+      },
+      requestedBy: user?.uid || 'owner',
+      timestamp: now,
+    });
+
+    appendActivityLog({
+      id: `log_sec_${now}`,
+      deviceId: 'esp32_main',
+      action: `SECURITY_PIN_OK -> MODE_${nextMode}`,
+      source: 'REMOTE_COMMAND',
+      actorUid: currentActorLabel,
+      timestamp: now,
+    });
+
+    if (firebaseAuth || backendConnected) {
+      try {
+        const updated = await apiClient.updateSystemMode(nextMode, nextConfig);
+        setSystemMode(updated.systemMode);
+        setAutoConfig(updated.autoConfig);
+      } catch (error) {
+        console.warn('Không thể lưu chế độ hệ thống:', error);
+      }
+    }
+    showToast(`Đã cập nhật sang chế độ ${nextMode}`, 'success');
+  };
+
+  const toggleSystemMode = async (nextMode: SystemMode, nextConfig?: Partial<AutoConfig>) => {
+    setPendingTargetMode(nextMode);
+    setPendingDraftConfig(nextConfig ? { ...autoConfig, ...nextConfig } : autoConfig);
+    setModeModalVisible(true);
+  };
+
+  const muteBuzzer = () => {
+    const now = Date.now();
+    directCloudMqtt.publishJson('buzzer/set', {
+      requestId: `req_mute_${now}`,
+      homeId: DEFAULT_HOME_ID,
+      deviceId: 'buzzer',
+      desiredState: { mute: true, power: 'OFF' },
+      requestedBy: user?.uid || 'owner',
+      timestamp: now,
+    });
+    setActiveBannerAlert(null);
+    appendActivityLog({
+      id: `log_mute_${now}`,
+      deviceId: 'esp32_main',
+      action: 'MUTE_BUZZER_REMOTE',
+      source: 'REMOTE_COMMAND',
+      actorUid: currentActorLabel,
+      timestamp: now,
+    });
+    showToast('Đã gửi lệnh tắt còi báo động xuống ESP32', 'success');
   };
 
   const acknowledgeAlert = async (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, acknowledged: true } : a))
+    const targetAlert = alerts.find((a) => a.id === alertId);
+    if (!targetAlert || targetAlert.acknowledged) return;
+
+    const nextAlerts = alerts.map((a) =>
+      a.id === alertId ? { ...a, acknowledged: true } : a
     );
-    if (activeBannerAlert?.id === alertId) {
-      setActiveBannerAlert(null);
+    setAlerts(nextAlerts);
+
+    const remainingCritical = nextAlerts.find(
+      (a) => !a.acknowledged && a.severity === 'CRITICAL'
+    );
+    setActiveBannerAlert(remainingCritical ?? null);
+
+    if (targetAlert.severity === 'CRITICAL' && !remainingCritical) {
+      muteBuzzer();
+    } else {
+      showToast('Đã xác nhận xử lý cảnh báo an toàn', 'success');
     }
+
     if (backendConnected) {
-      try {
-        await apiClient.acknowledgeAlert(alertId);
-      } catch {
-        // Ignore offline error
-      }
+      await apiClient.acknowledgeAlert(alertId).catch(() => {});
     }
   };
 
@@ -549,35 +829,21 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updatedAt: now,
       },
     }));
-
-    // Tự động bật quạt khi phát hiện khói ở chế độ AUTO
     setDevices((prev) =>
       prev.map((d) =>
-        d.id === 'fan1'
-          ? {
-              ...d,
-              desiredState: { power: 'ON', mode: 'AUTO' },
-              reportedState: { power: 'ON', mode: 'AUTO' },
-              lastCommandStatus: 'ACKED',
-              lastUpdated: now,
-            }
-          : d
+        d.id === 'fan1' ? applyReportedStateToDevice(d, { power: 'ON', mode: 'AUTO' }, now) : d
       )
     );
-
     setAlerts((prev) => [newAlert, ...prev]);
     setActiveBannerAlert(newAlert);
-    setActivityLogs((prev) => [
-      {
-        id: `log_auto_smoke_${now}`,
-        deviceId: 'fan1',
-        action: 'AUTO_FAN_ON_SMOKE_EMERGENCY',
-        source: 'AUTO_RULE',
-        actorUid: 'esp32_local_safety',
-        timestamp: now,
-      },
-      ...prev,
-    ]);
+    appendActivityLog({
+      id: `log_auto_smoke_${now}`,
+      deviceId: 'fan1',
+      action: 'AUTO_FAN_ON_SMOKE_EMERGENCY',
+      source: 'AUTO_RULE',
+      actorUid: 'esp32_local_safety',
+      timestamp: now,
+    });
   };
 
   const triggerDemoSensorUpdate = (tempC: number, smokeAdc: number, motion: boolean) => {
@@ -605,43 +871,32 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         motionDetected: motion,
         timestamp: now,
       },
-      ...prev.slice(0, 19),
+      ...prev.slice(0, MAX_LOCAL_SENSOR_READINGS - 1),
     ]);
 
-    // Kiểm tra Hysteresis cho quạt nếu đang ở chế độ AUTO
-    if (systemMode === 'AUTO') {
-      setDevices((prev) =>
-        prev.map((d) => {
-          if (d.id !== 'fan1') return d;
-          const currentPower = d.reportedState.power || 'OFF';
-          let nextPower = currentPower;
-          if (tempC >= autoConfig.tempThresholdHigh) nextPower = 'ON';
-          else if (tempC <= autoConfig.tempThresholdLow) nextPower = 'OFF';
+    if (systemMode !== 'AUTO') return;
 
-          if (nextPower !== currentPower) {
-            setActivityLogs((logs) => [
-              {
-                id: `log_hysteresis_${now}`,
-                deviceId: 'fan1',
-                action: `AUTO_HYSTERESIS_FAN_${nextPower} (${tempC}°C)`,
-                source: 'AUTO_RULE',
-                actorUid: 'esp32_auto_hysteresis',
-                timestamp: now,
-              },
-              ...logs,
-            ]);
-          }
+    setDevices((prev) =>
+      prev.map((d) => {
+        if (d.id !== 'fan1') return d;
+        const currentPower = d.reportedState.power || 'OFF';
+        let nextPower = currentPower;
+        if (tempC >= autoConfig.tempThresholdHigh) nextPower = 'ON';
+        else if (tempC <= autoConfig.tempThresholdLow) nextPower = 'OFF';
 
-          return {
-            ...d,
-            desiredState: { power: nextPower, mode: 'AUTO' },
-            reportedState: { power: nextPower, mode: 'AUTO' },
-            lastCommandStatus: 'ACKED',
-            lastUpdated: now,
-          };
-        })
-      );
-    }
+        if (nextPower !== currentPower) {
+          appendActivityLog({
+            id: `log_hysteresis_${now}`,
+            deviceId: 'fan1',
+            action: `AUTO_HYSTERESIS_FAN_${nextPower} (${tempC}°C)`,
+            source: 'AUTO_RULE',
+            actorUid: 'esp32_auto_hysteresis',
+            timestamp: now,
+          });
+        }
+        return applyReportedStateToDevice(d, { power: nextPower, mode: 'AUTO' }, now);
+      })
+    );
   };
 
   const updateApiBaseUrl = async (url: string): Promise<boolean> => {
@@ -658,39 +913,78 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const contextValue = useMemo<SmartHomeContextValue>(
+    () => ({
+      user,
+      backendConnected,
+      apiBaseUrl,
+      systemMode,
+      autoConfig,
+      esp32Status,
+      simulateEsp32Offline,
+      rooms,
+      devices,
+      latestSensors,
+      sensorReadings,
+      alerts,
+      activeBannerAlert,
+      activityLogs,
+      commands,
+      login,
+      register,
+      logout,
+      refreshAll,
+      sendDeviceCommand,
+      toggleSystemMode,
+      acknowledgeAlert,
+      muteBuzzer,
+      dismissBannerAlert,
+      showToast,
+      triggerDemoSmokeAlert,
+      triggerDemoSensorUpdate,
+      setSimulateEsp32Offline,
+      updateApiBaseUrl,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      user,
+      backendConnected,
+      apiBaseUrl,
+      systemMode,
+      autoConfig,
+      esp32Status,
+      simulateEsp32Offline,
+      rooms,
+      devices,
+      latestSensors,
+      sensorReadings,
+      alerts,
+      activeBannerAlert,
+      activityLogs,
+      commands,
+      refreshAll,
+      showToast,
+    ]
+  );
+
   return (
-    <SmartHomeContext.Provider
-      value={{
-        user,
-        backendConnected,
-        apiBaseUrl,
-        systemMode,
-        autoConfig,
-        esp32Status,
-        simulateEsp32Offline,
-        rooms,
-        devices,
-        latestSensors,
-        sensorReadings,
-        alerts,
-        activeBannerAlert,
-        activityLogs,
-        commands,
-        login,
-        register,
-        logout,
-        refreshAll,
-        sendDeviceCommand,
-        toggleSystemMode,
-        acknowledgeAlert,
-        dismissBannerAlert,
-        triggerDemoSmokeAlert,
-        triggerDemoSensorUpdate,
-        setSimulateEsp32Offline,
-        updateApiBaseUrl,
-      }}
-    >
+    <SmartHomeContext.Provider value={contextValue}>
       {children}
+      <FeedbackToast toast={toast} onDismiss={dismissToast} />
+      <SystemModeSecurityModal
+        visible={modeModalVisible}
+        currentMode={systemMode}
+        targetMode={pendingTargetMode}
+        autoConfig={pendingDraftConfig ?? autoConfig}
+        securityPin={securityPin}
+        userRole={user?.role}
+        onClose={() => setModeModalVisible(false)}
+        onConfirm={(confirmedMode, confirmedConfig) => {
+          void applyConfirmedSystemMode(confirmedMode, confirmedConfig);
+        }}
+        onChangePin={handleChangePin}
+        onBruteForceLockout={handleBruteForceLockout}
+      />
     </SmartHomeContext.Provider>
   );
 };
