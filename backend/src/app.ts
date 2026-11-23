@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import express, { Express } from 'express';
 import { env } from './config/env';
+import { openApiSpec, renderSwaggerHtml } from './docs/openApiSpec';
 import { errorHandler } from './middleware/errorHandler';
 import { apiRateLimiter } from './middleware/rateLimiter';
 import { MqttBridgeService, mqttBridgeService } from './mqtt/mqttClient';
@@ -28,6 +29,15 @@ export function createApp(deps?: {
   const cmdSvc = deps?.cmdSvc ?? commandService;
   const mqttSvc = deps?.mqttSvc ?? mqttBridgeService;
 
+  // Swagger UI (OpenAPI 3.1) tại /docs và file đặc tả tại /openapi.json
+  app.get('/openapi.json', (_req, res) => {
+    res.json(openApiSpec);
+  });
+  app.get(['/docs', '/docs/'], (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderSwaggerHtml());
+  });
+
   app.use('/api', apiRateLimiter);
   app.use(
     '/api',
@@ -49,23 +59,12 @@ export function createApp(deps?: {
 
   if (webDistDir) {
     app.use(express.static(webDistDir));
-    app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => {
+    app.get(/^(?!\/(?:api|docs|openapi\.json)(?:\/|$)).*/, (_req, res) => {
       res.sendFile(path.join(webDistDir, 'index.html'));
     });
   } else {
     app.get('/', (_req, res) => {
-      res.json({
-        success: true,
-        service: 'SMART HOME IoT 2026 — Cloud Backend API',
-        status: 'online',
-        homeId: env.HOME_ID,
-        storageMode: store.getMode(),
-        mqttConnected: mqttSvc.isConnected(),
-        endpoints: {
-          health: '/api/health',
-          snapshot: '/api/snapshot',
-        },
-      });
+      res.redirect('/docs');
     });
   }
 
