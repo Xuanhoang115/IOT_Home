@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "simulator": "tsx simulator/esp32-simulator.ts",
     "seed": "tsx scripts/seed-firebase.ts",
     "test:hivemq": "tsx scripts/test-hivemq.ts",
