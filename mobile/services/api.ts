@@ -15,11 +15,31 @@ import {
 
 import { firebaseAuth } from './firebaseAuth';
 
+function isLocalHostOrLan(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  );
+}
+
 function resolveDefaultApiBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    return `http://${window.location.hostname}:3000`;
+    // 1. Môi trường Local/LAN dev: giữ nguyên http://<host>:3000
+    if (isLocalHostOrLan(window.location.hostname)) {
+      return `http://${window.location.hostname}:3000`;
+    }
+    // 2. Môi trường Web Cloud tách riêng (Static Site): dùng URL Backend HTTPS từ env
+    if (envUrl && envUrl.startsWith('https://')) {
+      return envUrl.replace(/\/+$/, '');
+    }
+    // 3. Môi trường gộp chung Web + Backend trên cùng 1 domain Render (HTTPS)
+    return window.location.origin;
   }
-  return process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000';
+  return (envUrl || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 const DEFAULT_API_BASE_URL = resolveDefaultApiBaseUrl();

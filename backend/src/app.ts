@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import cors from 'cors';
 import express, { Express } from 'express';
 import { env } from './config/env';
@@ -26,21 +28,6 @@ export function createApp(deps?: {
   const cmdSvc = deps?.cmdSvc ?? commandService;
   const mqttSvc = deps?.mqttSvc ?? mqttBridgeService;
 
-  app.get('/', (_req, res) => {
-    res.json({
-      success: true,
-      service: 'SMART HOME IoT 2026 — Cloud Backend API',
-      status: 'online',
-      homeId: env.HOME_ID,
-      storageMode: store.getMode(),
-      mqttConnected: mqttSvc.isConnected(),
-      endpoints: {
-        health: '/api/health',
-        snapshot: '/api/snapshot',
-      },
-    });
-  });
-
   app.use('/api', apiRateLimiter);
   app.use(
     '/api',
@@ -50,6 +37,37 @@ export function createApp(deps?: {
       mqttSvc,
     })
   );
+
+  // Nếu có bản build giao diện Web (mobile/dist), phục vụ luôn giao diện Smart Home ngay tại trang chủ!
+  const candidateWebDirs = [
+    path.resolve(__dirname, '../../../mobile/dist'),
+    path.resolve(__dirname, '../../mobile/dist'),
+  ];
+  const webDistDir = candidateWebDirs.find((dir) =>
+    fs.existsSync(path.join(dir, 'index.html'))
+  );
+
+  if (webDistDir) {
+    app.use(express.static(webDistDir));
+    app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(webDistDir, 'index.html'));
+    });
+  } else {
+    app.get('/', (_req, res) => {
+      res.json({
+        success: true,
+        service: 'SMART HOME IoT 2026 — Cloud Backend API',
+        status: 'online',
+        homeId: env.HOME_ID,
+        storageMode: store.getMode(),
+        mqttConnected: mqttSvc.isConnected(),
+        endpoints: {
+          health: '/api/health',
+          snapshot: '/api/snapshot',
+        },
+      });
+    });
+  }
 
   app.use(errorHandler);
   return app;
