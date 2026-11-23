@@ -22,13 +22,32 @@ export function createApp(deps?: {
     })
   );
   app.use(express.json({ limit: '64kb' }));
+  const store = deps?.store ?? firebaseService;
+  const cmdSvc = deps?.cmdSvc ?? commandService;
+  const mqttSvc = deps?.mqttSvc ?? mqttBridgeService;
+
+  app.get('/', (_req, res) => {
+    res.json({
+      success: true,
+      service: 'SMART HOME IoT 2026 — Cloud Backend API',
+      status: 'online',
+      homeId: env.HOME_ID,
+      storageMode: store.getMode(),
+      mqttConnected: mqttSvc.isConnected(),
+      endpoints: {
+        health: '/api/health',
+        snapshot: '/api/snapshot',
+      },
+    });
+  });
+
   app.use('/api', apiRateLimiter);
   app.use(
     '/api',
     createApiRouter({
-      store: deps?.store ?? firebaseService,
-      cmdSvc: deps?.cmdSvc ?? commandService,
-      mqttSvc: deps?.mqttSvc ?? mqttBridgeService,
+      store,
+      cmdSvc,
+      mqttSvc,
     })
   );
 
