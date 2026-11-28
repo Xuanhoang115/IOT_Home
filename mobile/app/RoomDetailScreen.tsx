@@ -12,7 +12,15 @@ import BottomNav from '../components/BottomNav';
 import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
+import {
+  NEU_COLORS,
+  neuShadowSubtle,
+  RADIUS,
+  SPACING,
+} from '../styles/neumorphicTheme';
 import { RootStackParamList } from '../types/smarthome';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoomDetails'>;
@@ -27,8 +35,11 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
     systemMode,
     autoConfig,
     alerts,
+    isInitialLoading,
+    syncError,
     sendDeviceCommand,
     toggleSystemMode,
+    refreshAll,
   } = useSmartHome();
 
   const room = rooms.find((r) => r.id === roomId) || rooms[0]!;
@@ -71,7 +82,17 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
           <Text style={styles.backBtnText}>‹ Quay lại</Text>
         </TouchableOpacity>
 
-        {roomDevices.length > 0 ? (
+        {syncError ? (
+          <StateView
+            variant="error"
+            title="Mất kết nối đồng bộ phòng"
+            description={syncError}
+            actionLabel="Thử lại"
+            onAction={() => void refreshAll()}
+          />
+        ) : isInitialLoading ? (
+          <SkeletonLoader variant="grid" count={2} />
+        ) : roomDevices.length > 0 ? (
           <View style={styles.grid}>
             {roomDevices.map((dev) => (
               <DeviceCard
@@ -201,25 +222,27 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F4F8',
+    backgroundColor: NEU_COLORS.bg,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
   backBtn: {
     alignSelf: 'flex-start',
-    marginBottom: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    marginBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md + 2,
+    backgroundColor: NEU_COLORS.card,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: NEU_COLORS.borderSubtle,
   },
   backBtnText: {
-    color: '#9B51E0',
+    color: NEU_COLORS.primary,
     fontWeight: '800',
     fontSize: 13,
   },
@@ -229,65 +252,69 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
+    backgroundColor: NEU_COLORS.card,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md + 2,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: NEU_COLORS.borderSubtle,
+    ...neuShadowSubtle,
   },
   cardTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E2235',
+    color: NEU_COLORS.textPrimary,
     marginBottom: 6,
   },
   cardText: {
-    fontSize: 12,
-    color: '#8E95A9',
-    lineHeight: 18,
+    fontSize: 13,
+    color: NEU_COLORS.textSecondary,
+    lineHeight: 19,
   },
   adcText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#9B51E0',
-    marginTop: 8,
+    color: NEU_COLORS.primary,
+    marginTop: SPACING.sm,
   },
   btnRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+    gap: SPACING.sm + 2,
+    marginTop: SPACING.md,
   },
   modeBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: '#F2F4F8',
+    paddingVertical: 11,
+    borderRadius: RADIUS.md,
+    backgroundColor: NEU_COLORS.cardSoft,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: NEU_COLORS.borderSubtle,
   },
   modeBtnActive: {
-    backgroundColor: '#9B51E0',
+    backgroundColor: NEU_COLORS.primary,
+    borderColor: NEU_COLORS.primary,
   },
   modeBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475467',
+    color: NEU_COLORS.textSecondary,
   },
   modeBtnTextActive: {
     color: '#FFFFFF',
   },
   doorBtnOpen: {
     flex: 1,
-    backgroundColor: '#12B76A',
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: NEU_COLORS.success,
+    paddingVertical: 11,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   doorBtnClose: {
     flex: 1,
-    backgroundColor: '#344054',
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: NEU_COLORS.navy,
+    paddingVertical: 11,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   doorBtnText: {

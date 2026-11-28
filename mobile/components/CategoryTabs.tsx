@@ -1,5 +1,11 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import {
+  NEU_COLORS,
+  neuShadowSubtle,
+  RADIUS,
+  SPACING,
+} from '../styles/neumorphicTheme';
 import { RoomId } from '../types/smarthome';
 
 export interface CategoryOption {
@@ -29,8 +35,12 @@ export default function CategoryTabs({
         return (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.tab, active && styles.tabActive]}
+            style={[styles.tab, neuShadowSubtle, active && styles.tabActive]}
             onPress={() => onSelect(cat.id)}
+            activeOpacity={0.85}
+            accessibilityRole="tab"
+            accessibilityLabel={cat.label}
+            accessibilityState={{ selected: active }}
           >
             <Text style={[styles.text, active && styles.textActive]}>
               {cat.label}
@@ -44,25 +54,25 @@ export default function CategoryTabs({
 
 const styles = StyleSheet.create({
   scroll: {
-    marginBottom: 14,
+    marginBottom: SPACING.md + 2,
     flexGrow: 0,
   },
   tab: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 16,
-    marginRight: 8,
+    backgroundColor: NEU_COLORS.card,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    borderRadius: RADIUS.pill,
+    marginRight: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: NEU_COLORS.borderSubtle,
   },
   tabActive: {
-    backgroundColor: '#9B51E0',
-    borderColor: '#EC4899',
+    backgroundColor: NEU_COLORS.primary,
+    borderColor: NEU_COLORS.primary,
   },
   text: {
     fontSize: 12,
-    color: '#8E95A9',
+    color: NEU_COLORS.textSecondary,
     fontWeight: '700',
   },
   textActive: {

@@ -14,6 +14,7 @@ import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import { RoomId, RootStackParamList } from '../types/smarthome';
@@ -34,9 +35,12 @@ export default function DevicesScreen({ navigation, route }: Props) {
     esp32Status,
     systemMode,
     alerts,
+    isInitialLoading,
+    syncError,
     simulateEsp32Offline,
     sendDeviceCommand,
     toggleSystemMode,
+    refreshAll,
     setSimulateEsp32Offline,
   } = useSmartHome();
 
@@ -109,7 +113,17 @@ export default function DevicesScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
-        {filteredDevices.length === 0 ? (
+        {syncError ? (
+          <StateView
+            variant="error"
+            title="Mất kết nối đồng bộ"
+            description={syncError}
+            actionLabel="Thử lại"
+            onAction={() => void refreshAll()}
+          />
+        ) : isInitialLoading ? (
+          <SkeletonLoader variant="grid" count={4} />
+        ) : filteredDevices.length === 0 ? (
           <StateView
             variant="empty"
             icon="🔍"

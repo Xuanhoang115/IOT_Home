@@ -53,6 +53,8 @@ const STATE_TOPIC_REGEX = /^smarthome\/[^/]+\/(light1|light2|fan1|door1)\/state$
 export interface SmartHomeContextValue {
   user: AuthUser | null;
   backendConnected: boolean;
+  isInitialLoading: boolean;
+  syncError: string | null;
   apiBaseUrl: string;
   systemMode: SystemMode;
   autoConfig: AutoConfig;
@@ -91,6 +93,9 @@ export const SmartHomeContext = createContext<SmartHomeContextValue | undefined>
 export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const hasLoadedOnceRef = useRef<boolean>(false);
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(apiClient.getBaseUrl());
   const [systemMode, setSystemMode] = useState<SystemMode>('MANUAL');
   const [securityPin, setSecurityPin] = useState<string>(readStoredSecurityPin);
@@ -184,6 +189,9 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshAll = useCallback(async () => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
+    if (!hasLoadedOnceRef.current) {
+      setIsInitialLoading(true);
+    }
     const fetchStartedAt = Date.now();
     try {
       let snapshot;
@@ -221,6 +229,7 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } = snapshot;
 
       setBackendConnected(true);
+      setSyncError(null);
       if (remoteRooms.length > 0) setRooms(remoteRooms);
       if (remoteSensors.recentReadings) setSensorReadings(remoteSensors.recentReadings);
 
@@ -249,7 +258,12 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } catch {
       setBackendConnected(false);
+      if (!mqttLiveRef.current) {
+        setSyncError('Không thể kết nối máy chủ Backend. Kiểm tra mạng Wi-Fi hoặc bấm Thử lại.');
+      }
     } finally {
+      hasLoadedOnceRef.current = true;
+      setIsInitialLoading(false);
       isRefreshingRef.current = false;
     }
   }, [simulateEsp32Offline]);
@@ -418,6 +432,10 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     directCloudMqtt.start(handleIncomingMqttMessage, (connected) => {
       mqttLiveRef.current = connected;
       setMqttLive(connected);
+      if (connected) {
+        setSyncError(null);
+        setIsInitialLoading(false);
+      }
     });
 
     return () => {
@@ -917,6 +935,8 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     () => ({
       user,
       backendConnected,
+      isInitialLoading,
+      syncError,
       apiBaseUrl,
       systemMode,
       autoConfig,
@@ -949,6 +969,8 @@ export const SmartHomeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [
       user,
       backendConnected,
+      isInitialLoading,
+      syncError,
       apiBaseUrl,
       systemMode,
       autoConfig,

@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
@@ -32,8 +34,11 @@ export default function SensorsScreen({ navigation }: Props) {
     systemMode,
     autoConfig,
     alerts,
+    isInitialLoading,
+    syncError,
     sendDeviceCommand,
     toggleSystemMode,
+    refreshAll,
     triggerDemoSensorUpdate,
     triggerDemoSmokeAlert,
   } = useSmartHome();
@@ -102,6 +107,19 @@ export default function SensorsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
+        {syncError && (
+          <StateView
+            variant="error"
+            title="Mất kết nối dữ liệu cảm biến"
+            description={syncError}
+            actionLabel="Thử lại"
+            onAction={() => void refreshAll()}
+          />
+        )}
+        {isInitialLoading ? (
+          <SkeletonLoader variant="list" count={3} />
+        ) : (
+        <>
         {/* Circular Neumorphic Thermostat Dial */}
         <View style={styles.dialSection}>
           <View style={styles.scaleLabelsRow}>
@@ -431,14 +449,25 @@ export default function SensorsScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
 
-            {sensorReadings.slice(0, 4).map((r, i) => (
-              <Text key={`${r.timestamp}_${i}`} style={styles.readingLine}>
-                • {new Date(r.timestamp).toLocaleTimeString()}: 🌡️{' '}
-                {r.temperature.toFixed(1)}°C | 💧 {r.humidity.toFixed(0)}% | 🔥
-                ADC {r.smokeRawAdc}
-              </Text>
-            ))}
+            {sensorReadings.length === 0 ? (
+              <StateView
+                variant="empty"
+                icon="🌡️"
+                title="Chưa có dữ liệu lịch sử cảm biến"
+                description="Dữ liệu nhiệt độ, độ ẩm và khói sẽ được ghi nhận tự động khi ESP32 gửi bản tin."
+              />
+            ) : (
+              sensorReadings.slice(0, 4).map((r, i) => (
+                <Text key={`${r.timestamp}_${i}`} style={styles.readingLine}>
+                  • {new Date(r.timestamp).toLocaleTimeString()}: 🌡️{' '}
+                  {r.temperature.toFixed(1)}°C | 💧 {r.humidity.toFixed(0)}% | 🔥
+                  ADC {r.smokeRawAdc}
+                </Text>
+              ))
+            )}
           </View>
+        )}
+        </>
         )}
         </ResponsiveContainer>
       </ScrollView>

@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
@@ -33,7 +34,10 @@ export default function HistoryScreen({ navigation }: Props) {
     esp32Status,
     systemMode,
     alerts,
+    isInitialLoading,
+    syncError,
     toggleSystemMode,
+    refreshAll,
   } = useSmartHome();
 
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
@@ -65,7 +69,17 @@ export default function HistoryScreen({ navigation }: Props) {
             Nhật Ký Thực Thi Phần Cứng ({activityLogs.length})
           </Text>
 
-          {activityLogs.length === 0 ? (
+          {syncError ? (
+            <StateView
+              variant="error"
+              title="Không thể đồng bộ lịch sử"
+              description={syncError}
+              actionLabel="Thử lại"
+              onAction={() => void refreshAll()}
+            />
+          ) : isInitialLoading ? (
+            <SkeletonLoader variant="list" count={4} />
+          ) : activityLogs.length === 0 ? (
             <StateView
               variant="empty"
               icon="📋"

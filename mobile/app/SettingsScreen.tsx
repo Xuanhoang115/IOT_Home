@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
@@ -35,8 +36,10 @@ export default function SettingsScreen({ navigation }: Props) {
     latestSensors,
     esp32Status,
     alerts,
+    syncError,
     toggleSystemMode,
     updateApiBaseUrl,
+    refreshAll,
     showToast,
     logout,
   } = useSmartHome();
@@ -94,6 +97,16 @@ export default function SettingsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
+          {syncError && (
+            <StateView
+              variant="error"
+              title="Máy chủ Backend chưa phản hồi"
+              description={syncError}
+              actionLabel="Thử kết nối lại"
+              onAction={() => void refreshAll()}
+            />
+          )}
+
           {/* Thông tin người dùng */}
           <View style={[styles.card, neuShadowSubtle]}>
             <Text style={[TYPOGRAPHY.h2, styles.cardTitle]}>👤 Tài khoản đang đăng nhập</Text>

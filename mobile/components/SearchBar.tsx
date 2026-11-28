@@ -1,5 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  NEU_COLORS,
+  neuShadowSubtle,
+  RADIUS,
+  SPACING,
+} from '../styles/neumorphicTheme';
 
 interface SearchBarProps {
   value: string;
@@ -13,15 +19,26 @@ export default function SearchBar({
   placeholder = 'Tìm kiếm thiết bị hoặc phòng...',
 }: SearchBarProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, neuShadowSubtle]}>
       <Text style={styles.icon}>🔍</Text>
       <TextInput
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#98A2B3"
+        placeholderTextColor={NEU_COLORS.textMuted}
+        accessibilityLabel={placeholder}
       />
+      {value.length > 0 && (
+        <TouchableOpacity
+          onPress={() => onChangeText('')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Xóa từ khóa tìm kiếm"
+        >
+          <Text style={styles.clearIcon}>✕</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -30,21 +47,27 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    backgroundColor: NEU_COLORS.card,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md + 2,
+    height: 46,
     borderWidth: 1,
-    borderColor: '#E4E9F2',
-    marginBottom: 12,
+    borderColor: NEU_COLORS.borderSubtle,
+    marginBottom: SPACING.md,
   },
   icon: {
     fontSize: 15,
-    marginRight: 8,
+    marginRight: SPACING.sm,
   },
   input: {
     flex: 1,
-    fontSize: 13,
-    color: '#1D2939',
+    fontSize: 14,
+    color: NEU_COLORS.textPrimary,
+  },
+  clearIcon: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: NEU_COLORS.textSecondary,
+    paddingLeft: SPACING.sm,
   },
 });

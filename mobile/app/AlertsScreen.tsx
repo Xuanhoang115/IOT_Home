@@ -11,6 +11,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
@@ -30,9 +31,12 @@ export default function AlertsScreen({ navigation }: Props) {
     latestSensors,
     esp32Status,
     systemMode,
+    isInitialLoading,
+    syncError,
     toggleSystemMode,
     acknowledgeAlert,
     muteBuzzer,
+    refreshAll,
     triggerDemoSmokeAlert,
   } = useSmartHome();
 
@@ -122,7 +126,17 @@ export default function AlertsScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {visibleAlerts.length === 0 ? (
+          {syncError ? (
+            <StateView
+              variant="error"
+              title="Không thể tải danh sách cảnh báo"
+              description={syncError}
+              actionLabel="Thử lại"
+              onAction={() => void refreshAll()}
+            />
+          ) : isInitialLoading ? (
+            <SkeletonLoader variant="list" count={3} />
+          ) : visibleAlerts.length === 0 ? (
             <StateView
               variant="empty"
               icon="🛡️"

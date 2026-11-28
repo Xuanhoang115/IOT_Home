@@ -14,6 +14,8 @@ import BottomNav from '../components/BottomNav';
 import DeviceCard from '../components/DeviceCard';
 import RoomCard from '../components/RoomCard';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import SkeletonLoader from '../components/ui/SkeletonLoader';
+import StateView from '../components/ui/StateView';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   APP_LOGO_IMAGE,
@@ -61,6 +63,8 @@ export default function DashboardScreen({ navigation }: Props) {
     latestSensors,
     alerts,
     activeBannerAlert,
+    isInitialLoading,
+    syncError,
     sendDeviceCommand,
     toggleSystemMode,
     acknowledgeAlert,
@@ -323,7 +327,19 @@ export default function DashboardScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {activeSegment === 'ROOM' ? (
+        {syncError && (
+          <StateView
+            variant="error"
+            title="Mất kết nối đồng bộ"
+            description={syncError}
+            actionLabel="Thử lại"
+            onAction={() => void refreshAll()}
+          />
+        )}
+
+        {isInitialLoading ? (
+          <SkeletonLoader variant="grid" count={4} />
+        ) : activeSegment === 'ROOM' ? (
           <>
             {/* 2x2 Room Grid matching the Mockup */}
             <View style={styles.gridWrap}>

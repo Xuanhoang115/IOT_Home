@@ -284,23 +284,123 @@ export function renderSwaggerHtml(): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
   <title>SMART HOME IoT 2026 API — Swagger UI</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      background-color: #111318;
-      color: #e5e7eb;
+      background: #0f1218;
+      color: #f1f5f9;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .swagger-ui {
-      filter: invert(88%) hue-rotate(180deg);
+    .swagger-ui { color: #f1f5f9; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .wrapper { max-width: 1120px; padding: 0 24px; }
+    .swagger-ui .info { margin: 32px 0 20px; }
+    .swagger-ui .info .title {
+      color: #ffffff;
+      font-weight: 800;
+      letter-spacing: -0.4px;
     }
-    .swagger-ui .microlight {
-      filter: invert(100%) hue-rotate(180deg);
+    .swagger-ui .info .title small {
+      background: #334155;
+      color: #f8fafc;
+      border-radius: 999px;
+      padding: 3px 10px;
     }
-    .swagger-ui .topbar {
-      display: none;
+    .swagger-ui .info .title small.version-stamp {
+      background: #65a30d;
+      color: #ffffff;
     }
+    .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .swagger-ui .info a { color: #60a5fa; }
+    .swagger-ui .scheme-container {
+      background: #171b24;
+      box-shadow: none;
+      border-top: 1px solid #262c3a;
+      border-bottom: 1px solid #262c3a;
+      padding: 18px 0;
+    }
+    .swagger-ui .servers-title, .swagger-ui label, .swagger-ui .opblock-tag,
+    .swagger-ui .opblock-tag small, .swagger-ui h4, .swagger-ui h5,
+    .swagger-ui .opblock-description-wrapper p, .swagger-ui .opblock-summary-description,
+    .swagger-ui .opblock-summary-path, .swagger-ui .response-col_status,
+    .swagger-ui .response-col_description, .swagger-ui table thead tr th,
+    .swagger-ui table thead tr td, .swagger-ui .parameter__name,
+    .swagger-ui .parameter__type, .swagger-ui .tab li button.tablinks {
+      color: #e2e8f0 !important;
+    }
+    .swagger-ui .opblock-tag small, .swagger-ui .opblock-summary-description {
+      color: #94a3b8 !important;
+    }
+    .swagger-ui .opblock-tag {
+      border-bottom: 1px solid #262c3a;
+    }
+    .swagger-ui .opblock-tag:hover { background: rgba(255,255,255,0.03); }
+    .swagger-ui select, .swagger-ui input[type=text], .swagger-ui input[type=password],
+    .swagger-ui textarea {
+      background: #0f1218 !important;
+      color: #f8fafc !important;
+      border: 1px solid #334155 !important;
+      border-radius: 8px;
+    }
+    .swagger-ui .btn.authorize {
+      color: #4ade80;
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, 0.08);
+      border-radius: 8px;
+    }
+    .swagger-ui .btn.authorize svg { fill: #4ade80; }
+    .swagger-ui .opblock {
+      border-radius: 10px;
+      box-shadow: none;
+      margin: 0 0 12px;
+      background: #171b24;
+    }
+    .swagger-ui .opblock.opblock-get {
+      border-color: #1d4ed8;
+      background: rgba(37, 99, 235, 0.12);
+    }
+    .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2563eb; }
+    .swagger-ui .opblock.opblock-post {
+      border-color: #15803d;
+      background: rgba(22, 163, 74, 0.12);
+    }
+    .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #16a34a; }
+    .swagger-ui .opblock.opblock-patch {
+      border-color: #0f766e;
+      background: rgba(13, 148, 136, 0.14);
+    }
+    .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #0d9488; }
+    .swagger-ui .opblock .opblock-section-header {
+      background: #1e2432;
+      box-shadow: none;
+    }
+    .swagger-ui .opblock-body pre.microlight {
+      background: #0b0e14 !important;
+      color: #e2e8f0 !important;
+      border: 1px solid #262c3a;
+      border-radius: 8px;
+    }
+    .swagger-ui .dialog-ux .modal-ux {
+      background: #171b24;
+      border: 1px solid #334155;
+      border-radius: 14px;
+    }
+    .swagger-ui .dialog-ux .modal-ux-header { border-bottom: 1px solid #262c3a; }
+    .swagger-ui .dialog-ux .modal-ux-header h3, .swagger-ui .dialog-ux .modal-ux-content p,
+    .swagger-ui .dialog-ux .modal-ux-content h4 { color: #f8fafc; }
+    .swagger-ui .btn { border-radius: 8px; color: #f8fafc; border-color: #475569; background: #1e2432; }
+    .swagger-ui .btn.execute { background: #2563eb; border-color: #2563eb; color: #ffffff; }
+    .swagger-ui svg.arrow { fill: #94a3b8; }
+    .swagger-ui .authorization__btn svg { fill: #94a3b8; }
   </style>
 </head>
 <body>
