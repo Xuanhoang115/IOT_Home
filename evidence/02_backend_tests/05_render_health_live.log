@@ -1,0 +1,27 @@
+﻿======================================================================
+SMART HOME IoT 2026 - EVIDENCE LOG
+Step      : Render Cloud Backend Healthcheck (/api/health)
+Timestamp : 2026-11-28 16:07:33 +07:00
+======================================================================
+
+{
+    "success":  true,
+    "data":  {
+                 "status":  "ok",
+                 "homeId":  "home1",
+                 "storageMode":  "firebase-admin",
+                 "mqttConnected":  true,
+                 "esp32Status":  {
+                                     "firmwareVersion":  "1.0.0",
+                                     "lastSeen":  1795855096650,
+                                     "online":  false,
+                                     "reason":  "lwt_unexpected_disconnect",
+                                     "rssi":  -64
+                                 },
+                 "systemMode":  "MANUAL",
+                 "timestamp":  1795856854372
+             }
+}
+
+
+[EXIT_CODE=0]
