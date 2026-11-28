@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DimensionValue, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   NEU_COLORS,
   neuShadow,
@@ -14,6 +14,7 @@ interface DeviceCardProps {
   device: DeviceRecord;
   onToggle: (desiredState: DesiredState) => void;
   onPressDetail?: () => void;
+  cardWidth?: DimensionValue;
 }
 
 const ROOM_LABELS: Record<string, string> = {
@@ -26,6 +27,7 @@ function DeviceCard({
   device,
   onToggle,
   onPressDetail,
+  cardWidth = '48.5%',
 }: DeviceCardProps) {
   const isDoor = device.type === 'door';
   const isPending = device.lastCommandStatus === 'PENDING';
@@ -78,14 +80,15 @@ function DeviceCard({
     <TouchableOpacity
       style={[
         styles.card,
+        { width: cardWidth },
         neuShadow,
         isActive && styles.cardActive,
         hasError && styles.cardError,
       ]}
       activeOpacity={0.88}
-      onPress={onPressDetail || handleTogglePress}
+      onPress={handleTogglePress}
       accessibilityRole="button"
-      accessibilityLabel={`${device.name}, ${isActive ? 'đang bật' : 'đang tắt'}`}
+      accessibilityLabel={`${device.name}, ${isActive ? 'đang bật' : 'đang tắt'}. Chạm để bật hoặc tắt`}
     >
       <View style={styles.topHeader}>
         <View

@@ -13,10 +13,18 @@ import CategoryTabs, { CategoryOption } from '../components/CategoryTabs';
 import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
+import FadeInView from '../components/ui/FadeInView';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useSmartHome } from '../hooks/useSmartHome';
+import {
+  NEU_COLORS,
+  neuShadowSubtle,
+  RADIUS,
+  SPACING,
+} from '../styles/neumorphicTheme';
 import { RoomId, RootStackParamList } from '../types/smarthome';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Devices'>;
@@ -44,6 +52,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
     setSimulateEsp32Offline,
   } = useSmartHome();
 
+  const { cardWidth, horizontalPadding, isCompact } = useResponsiveLayout();
   const [selectedRoom, setSelectedRoom] = useState<RoomId | 'ALL'>(
     route.params?.initialRoomId || 'ALL'
   );
@@ -61,7 +70,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="Điều Khiển Thiết Bị"
-        subtitle="Mọi công tắc chỉ đổi trạng thái khi nhận được reportedState từ ESP32"
+        subtitle="Chạm trực tiếp thẻ thiết bị để bật/tắt • Đồng bộ phản hồi từ ESP32"
         temperature={latestSensors.temperature.value}
         humidity={latestSensors.humidity.value}
         esp32Status={esp32Status}
@@ -76,7 +85,10 @@ export default function DevicesScreen({ navigation, route }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
@@ -89,23 +101,37 @@ export default function DevicesScreen({ navigation, route }: Props) {
         />
 
         {/* Thanh kiểm thử nhanh kịch bản TC-14 (Mất mạng / Timeout) */}
-        <View style={styles.testBar}>
-          <View style={styles.testInfo}>
+        <View
+          style={[
+            styles.testBar,
+            neuShadowSubtle,
+            isCompact && styles.testBarCompact,
+          ]}
+        >
+          <View style={[styles.testInfo, isCompact && styles.testInfoCompact]}>
             <Text style={styles.testTitle}>
-              Kịch bản TC-14: Kiểm thử ESP32 Offline & Timeout
+              Kiểm thử ESP32 Ngoại tuyến & Timeout
             </Text>
             <Text style={styles.testSub}>
               {simulateEsp32Offline
-                ? 'Đang giả lập ESP32 mất kết nối: Bấm công tắc sẽ hiện PENDING rồi báo lỗi TIMEOUT.'
-                : 'ESP32 đang Online: Bấm công tắc sẽ gửi lệnh và nhận reportedState ACK.'}
+                ? 'Đang giả lập mất kết nối: Bấm công tắc sẽ chờ rồi báo quá hạn.'
+                : 'ESP32 đang trực tuyến: Bấm công tắc gửi lệnh và nhận phản hồi thực.'}
             </Text>
           </View>
           <TouchableOpacity
             style={[
               styles.simBtn,
               simulateEsp32Offline && styles.simBtnOffline,
+              isCompact && styles.simBtnCompact,
             ]}
             onPress={() => setSimulateEsp32Offline(!simulateEsp32Offline)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={
+              simulateEsp32Offline
+                ? 'Bật lại kết nối ESP32'
+                : 'Giả lập rút nguồn ESP32'
+            }
           >
             <Text style={styles.simBtnText}>
               {simulateEsp32Offline ? 'Bật lại Online' : 'Giả lập Rút Nguồn'}
@@ -113,6 +139,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
+        <FadeInView key={selectedRoom}>
         {syncError ? (
           <StateView
             variant="error"
@@ -141,6 +168,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
               <DeviceCard
                 key={device.id}
                 device={device}
+                cardWidth={cardWidth}
                 onToggle={(desired) => sendDeviceCommand(device.id, desired)}
                 onPressDetail={() =>
                   navigation.navigate('RoomDetails', { roomId: device.roomId })
@@ -149,6 +177,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
             ))}
           </View>
         )}
+        </FadeInView>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -164,67 +193,71 @@ export default function DevicesScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F4F8',
+    backgroundColor: NEU_COLORS.bg,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 24,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl,
   },
   testBar: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 14,
+    backgroundColor: NEU_COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md + 2,
+    marginBottom: SPACING.md + 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: NEU_COLORS.borderSubtle,
+    gap: SPACING.sm + 2,
+  },
+  testBarCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   testInfo: {
     flex: 1,
-    marginRight: 10,
+  },
+  testInfoCompact: {
+    marginRight: 0,
   },
   testTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#1E2235',
+    color: NEU_COLORS.textPrimary,
   },
   testSub: {
-    fontSize: 11,
-    color: '#8E95A9',
+    fontSize: 11.5,
+    color: NEU_COLORS.textSecondary,
     marginTop: 2,
+    lineHeight: 16,
   },
   simBtn: {
-    backgroundColor: '#9B51E0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    backgroundColor: NEU_COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 1,
+    borderRadius: RADIUS.sm + 2,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  simBtnCompact: {
+    alignSelf: 'flex-start',
   },
   simBtnOffline: {
-    backgroundColor: '#D92D20',
+    backgroundColor: NEU_COLORS.danger,
   },
   simBtnText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
-  emptyBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#667085',
-    fontSize: 13,
   },
 });

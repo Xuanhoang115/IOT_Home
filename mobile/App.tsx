@@ -132,6 +132,8 @@ export default function MobileApp() {
             initialRouteName="Splash"
             screenOptions={{
               headerShown: false,
+              animation: 'fade',
+              animationDuration: 180,
             }}
           >
             <Stack.Screen name="Splash" component={SplashScreen} />

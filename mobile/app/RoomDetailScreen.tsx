@@ -11,9 +11,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import DeviceCard from '../components/DeviceCard';
 import Header from '../components/Header';
+import FadeInView from '../components/ui/FadeInView';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
@@ -42,6 +44,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
     refreshAll,
   } = useSmartHome();
 
+  const { cardWidth, horizontalPadding, isTablet, isDesktop } = useResponsiveLayout();
   const room = rooms.find((r) => r.id === roomId) || rooms[0]!;
   const roomIconMap: Record<string, string> = { bed: '🛏️', sofa: '🛋️', kitchen: '🍳' };
   const roomEmoji = roomIconMap[room.icon] || room.icon;
@@ -69,13 +72,18 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
+        <FadeInView>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
+          activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Quay lại trang trước"
         >
@@ -93,11 +101,19 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
         ) : isInitialLoading ? (
           <SkeletonLoader variant="grid" count={2} />
         ) : roomDevices.length > 0 ? (
-          <View style={styles.grid}>
+          <View
+            style={[
+              styles.grid,
+              (isTablet || isDesktop) &&
+                roomDevices.length < 3 &&
+                styles.gridWideSparse,
+            ]}
+          >
             {roomDevices.map((dev) => (
               <DeviceCard
                 key={dev.id}
                 device={dev}
+                cardWidth={cardWidth}
                 onToggle={(desired) => sendDeviceCommand(dev.id, desired)}
               />
             ))}
@@ -105,7 +121,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
         ) : (
           <View style={styles.infoCard}>
             <Text style={styles.cardTitle}>
-              🔥 Khu vực Giám sát An toàn Khói/Khí (MQ-2)
+              🔥 Khu vực Giám sát An toàn Khói / Khí gas (MQ-2)
             </Text>
             <Text style={styles.cardText}>
               Phòng bếp được trang bị cảm biến MQ-2 gắn vào chân ADC1 (GPIO34)
@@ -122,7 +138,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
         {fanDevice && (
           <View style={styles.infoCard}>
             <Text style={styles.cardTitle}>
-              🔒 Chế độ Quạt Thông Gió (`fan1` - Bảo mật Mã PIN)
+              🔒 Chế độ Quạt Thông Gió (Bảo mật Mã PIN)
             </Text>
             <Text style={styles.cardText}>
               Ở chế độ AUTO, hệ thống tự bật quạt khi nhiệt độ ≥{' '}
@@ -137,6 +153,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
                   systemMode === 'MANUAL' && styles.modeBtnActive,
                 ]}
                 onPress={() => toggleSystemMode('MANUAL')}
+                activeOpacity={0.85}
               >
                 <Text
                   style={[
@@ -154,6 +171,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
                   systemMode === 'AUTO' && styles.modeBtnActive,
                 ]}
                 onPress={() => toggleSystemMode('AUTO')}
+                activeOpacity={0.85}
               >
                 <Text
                   style={[
@@ -172,13 +190,14 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
         {doorDevice && (
           <View style={styles.infoCard}>
             <Text style={styles.cardTitle}>
-              🚪 Điều khiển Cửa Chính (`door1` - Servo SG90)
+              🚪 Điều khiển Cửa Chính (Servo SG90)
             </Text>
             <Text style={styles.cardText}>
-              Trạng thái góc lệnh hiện tại:{' '}
-              {doorDevice.reportedState.currentAngle ?? 0}° (
-              {doorDevice.reportedState.doorState}) • positionVerified: false
-              (phản hồi theo lệnh xung PWM cấp cho Servo SG90).
+              Góc mở hiện tại: {doorDevice.reportedState.currentAngle ?? 0}° (
+              {doorDevice.reportedState.doorState === 'OPEN'
+                ? 'Đang mở'
+                : 'Đang đóng'}
+              ) • Điều khiển theo xung PWM cấp cho Servo SG90.
             </Text>
             <View style={styles.btnRow}>
               <TouchableOpacity
@@ -189,6 +208,7 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
                     targetAngle: 90,
                   })
                 }
+                activeOpacity={0.85}
               >
                 <Text style={styles.doorBtnText}>Mở Cửa (90°)</Text>
               </TouchableOpacity>
@@ -201,12 +221,14 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
                     targetAngle: 0,
                   })
                 }
+                activeOpacity={0.85}
               >
                 <Text style={styles.doorBtnText}>Đóng Cửa (0°)</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
+        </FadeInView>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -228,7 +250,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
   backBtn: {
@@ -250,6 +272,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  gridWideSparse: {
+    justifyContent: 'flex-start',
+    columnGap: SPACING.md,
   },
   infoCard: {
     backgroundColor: NEU_COLORS.card,

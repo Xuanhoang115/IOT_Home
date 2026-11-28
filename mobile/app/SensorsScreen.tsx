@@ -9,15 +9,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
+import FadeInView from '../components/ui/FadeInView';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
   neuGlowPink,
   neuShadow,
   neuShadowSubtle,
+  RADIUS,
+  SPACING,
 } from '../styles/neumorphicTheme';
 import { RootStackParamList } from '../types/smarthome';
 
@@ -43,19 +47,13 @@ export default function SensorsScreen({ navigation }: Props) {
     triggerDemoSmokeAlert,
   } = useSmartHome();
 
+  const { horizontalPadding, isCompact } = useResponsiveLayout();
   const [darkDialTheme, setDarkDialTheme] = useState(false);
-  const [selectedDeviceIdx, setSelectedDeviceIdx] = useState(0);
   const [showSimPanel, setShowSimPanel] = useState(false);
 
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
   const fanDevice = devices.find((d) => d.id === 'fan1');
   const isFanOn = fanDevice?.reportedState.power === 'ON';
-
-  const deviceOptions = [
-    { id: 'fan1', label: 'device 1 • Quạt & DHT22' },
-    { id: 'light1', label: 'device 2 • Đèn Phòng khách' },
-    { id: 'light2', label: 'device 3 • Đèn P.Ngủ & Còi' },
-  ];
 
   const adjustThreshold = (delta: number) => {
     const nextHigh = Math.min(
@@ -72,22 +70,24 @@ export default function SensorsScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ResponsiveContainer>
-      {/* Top Bar matching Mockup Screen 2 & 3 */}
-      <View style={styles.topBar}>
+      {/* Top Bar */}
+      <View style={[styles.topBar, { paddingHorizontal: horizontalPadding }]}>
         <TouchableOpacity
           style={[styles.circleIconBtn, neuShadowSubtle]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại"
         >
           <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
 
         <View style={styles.titleCenter}>
-          <Text style={styles.screenTitle}>Thermostat</Text>
+          <Text style={styles.screenTitle}>Cảm Biến & Nhiệt Độ</Text>
           <Text style={styles.subStatus}>
             {esp32Status.online
-              ? `🟢 ESP32 Online • DHT22 Live`
-              : '🔴 ESP32 Offline'}
+              ? '🟢 ESP32 Trực tuyến • DHT22'
+              : '🔴 ESP32 Ngoại tuyến'}
           </Text>
         </View>
 
@@ -95,6 +95,8 @@ export default function SensorsScreen({ navigation }: Props) {
           style={[styles.circleIconBtn, neuShadowSubtle]}
           onPress={() => setDarkDialTheme(!darkDialTheme)}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Đổi giao diện vòng nhiệt độ sáng tối"
         >
           <Text style={styles.gearIcon}>{darkDialTheme ? '☀️' : '🌙'}</Text>
         </TouchableOpacity>
@@ -103,10 +105,14 @@ export default function SensorsScreen({ navigation }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
+        <FadeInView style={styles.fadeWrap}>
         {syncError && (
           <StateView
             variant="error"
@@ -177,10 +183,10 @@ export default function SensorsScreen({ navigation }: Props) {
                     ]}
                   >
                     {systemMode === 'AUTO'
-                      ? 'AUTO COOLING'
+                      ? 'TỰ ĐỘNG LÀM MÁT'
                       : isFanOn
-                      ? 'FAN RUNNING'
-                      : 'HEATING / IDLE'}
+                      ? 'QUẠT ĐANG CHẠY'
+                      : 'CHẾ ĐỘ CHỜ'}
                   </Text>
 
                   <Text
@@ -189,7 +195,7 @@ export default function SensorsScreen({ navigation }: Props) {
                       darkDialTheme && styles.dialTempNumberDark,
                     ]}
                   >
-                    {latestSensors.temperature.value.toFixed(1)}
+                    {latestSensors.temperature.value.toFixed(1)}°
                   </Text>
 
                   <Text
@@ -212,6 +218,9 @@ export default function SensorsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.adjustBtn, neuShadowSubtle]}
               onPress={() => adjustThreshold(-0.5)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Giảm ngưỡng bật quạt 0.5 độ"
             >
               <Text style={styles.adjustBtnText}>− 0.5°</Text>
             </TouchableOpacity>
@@ -219,44 +228,34 @@ export default function SensorsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.themeSwitchPill, neuShadowSubtle]}
               onPress={() => setDarkDialTheme(!darkDialTheme)}
+              activeOpacity={0.85}
             >
               <Text style={styles.themeSwitchText}>
-                Giao diện vòng xoay: {darkDialTheme ? 'Gradient Tối' : 'Trắng Nổi'}
+                Vòng xoay: {darkDialTheme ? 'Tối' : 'Sáng'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.adjustBtn, neuShadowSubtle]}
               onPress={() => adjustThreshold(0.5)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Tăng ngưỡng bật quạt 0.5 độ"
             >
               <Text style={styles.adjustBtnText}>+ 0.5°</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Device Selector Pill Dropdown (like "device 1 v" in Mockup) */}
-        <TouchableOpacity
-          style={[styles.deviceDropdownPill, neuShadowSubtle]}
-          onPress={() =>
-            setSelectedDeviceIdx((selectedDeviceIdx + 1) % deviceOptions.length)
-          }
-          activeOpacity={0.85}
-        >
-          <Text style={styles.deviceDropdownText}>
-            {deviceOptions[selectedDeviceIdx]!.label}
-          </Text>
-          <Text style={styles.dropdownChevron}>⌄</Text>
-        </TouchableOpacity>
-
-        {/* Two Square Neumorphic Sensor Cards ("Inside humidity" & "Outside temps / Threshold") */}
+        {/* Two Square Neumorphic Sensor Cards */}
         <View style={styles.twoCardsRow}>
           <View style={[styles.squareMetricCard, neuShadow]}>
             <View style={[styles.metricIconCircle, styles.metricPinkBg]}>
               <Text style={styles.metricIconEmoji}>💧</Text>
             </View>
-            <Text style={styles.metricTitle}>Inside humidity</Text>
+            <Text style={styles.metricTitle}>Độ ẩm phòng</Text>
             <Text style={styles.metricValue}>
-              {latestSensors.humidity.value.toFixed(0)} %
+              {latestSensors.humidity.value.toFixed(0)}%
             </Text>
           </View>
 
@@ -264,21 +263,21 @@ export default function SensorsScreen({ navigation }: Props) {
             <View style={[styles.metricIconCircle, styles.metricPurpleBg]}>
               <Text style={styles.metricIconEmoji}>🌡️</Text>
             </View>
-            <Text style={styles.metricTitle}>Auto Fan Trigger</Text>
+            <Text style={styles.metricTitle}>Ngưỡng bật quạt</Text>
             <Text style={styles.metricValue}>
-              {autoConfig.tempThresholdHigh.toFixed(1)}°
+              {autoConfig.tempThresholdHigh.toFixed(1)}°C
             </Text>
           </View>
         </View>
 
-        {/* Detailed Summary Card (matching Screen 3 of the Mockup) */}
+        {/* Detailed Summary Card */}
         <View style={[styles.summaryListCard, neuShadow]}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryLeft}>
               <View style={styles.smallCircleIcon}>
                 <Text style={styles.smallEmoji}>💧</Text>
               </View>
-              <Text style={styles.summaryLabel}>Inside humidity (DHT22)</Text>
+              <Text style={styles.summaryLabel}>Độ ẩm phòng (DHT22)</Text>
             </View>
             <Text style={styles.summaryVal}>
               {latestSensors.humidity.value.toFixed(1)} %
@@ -292,7 +291,7 @@ export default function SensorsScreen({ navigation }: Props) {
               <View style={styles.smallCircleIcon}>
                 <Text style={styles.smallEmoji}>🔥</Text>
               </View>
-              <Text style={styles.summaryLabel}>Smoke / Gas (MQ-2 Bếp)</Text>
+              <Text style={styles.summaryLabel}>Khói / Khí gas (MQ-2 Bếp)</Text>
             </View>
             <Text
               style={[
@@ -312,20 +311,28 @@ export default function SensorsScreen({ navigation }: Props) {
               <View style={styles.smallCircleIcon}>
                 <Text style={styles.smallEmoji}>🚶</Text>
               </View>
-              <Text style={styles.summaryLabel}>Motion Sensor (PIR)</Text>
+              <Text style={styles.summaryLabel}>Cảm biến chuyển động (PIR)</Text>
             </View>
-            <Text style={styles.summaryVal}>
+            <Text
+              style={[
+                styles.summaryVal,
+                latestSensors.motion.motionDetected && {
+                  color: NEU_COLORS.danger,
+                },
+              ]}
+            >
               {latestSensors.motion.motionDetected ? 'Có người!' : 'An toàn'}
             </Text>
           </View>
         </View>
 
-        {/* Bottom 4 Circular Neumorphic Action Buttons: MODE | ECO | SCHEDULE | HISTORY */}
+        {/* Bottom 4 Circular Neumorphic Action Buttons */}
         <View style={styles.fourButtonsRow}>
           <View style={styles.actionBtnCol}>
             <TouchableOpacity
               style={[
                 styles.roundActionBtn,
+                isCompact && styles.roundActionBtnCompact,
                 neuShadow,
                 systemMode === 'AUTO' && [
                   styles.roundActionBtnActive,
@@ -336,6 +343,8 @@ export default function SensorsScreen({ navigation }: Props) {
                 toggleSystemMode(systemMode === 'MANUAL' ? 'AUTO' : 'MANUAL')
               }
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Chuyển chế độ tự động, hiện tại ${systemMode}`}
             >
               <Text
                 style={[
@@ -347,7 +356,7 @@ export default function SensorsScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
             <Text style={styles.roundActionLabel}>
-              MODE ({systemMode})
+              {systemMode === 'AUTO' ? 'TỰ ĐỘNG' : 'THỦ CÔNG'}
             </Text>
           </View>
 
@@ -355,6 +364,7 @@ export default function SensorsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.roundActionBtn,
+                isCompact && styles.roundActionBtnCompact,
                 neuShadow,
                 isFanOn && [styles.roundActionBtnActive, neuGlowPink],
               ]}
@@ -364,6 +374,8 @@ export default function SensorsScreen({ navigation }: Props) {
                 })
               }
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={isFanOn ? 'Tắt quạt' : 'Bật quạt'}
             >
               <Text
                 style={[
@@ -375,7 +387,7 @@ export default function SensorsScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
             <Text style={styles.roundActionLabel}>
-              ECO FAN ({isFanOn ? 'ON' : 'OFF'})
+              QUẠT ({isFanOn ? 'BẬT' : 'TẮT'})
             </Text>
           </View>
 
@@ -383,11 +395,14 @@ export default function SensorsScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.roundActionBtn,
+                isCompact && styles.roundActionBtnCompact,
                 neuShadow,
                 showSimPanel && styles.roundActionBtnActive,
               ]}
               onPress={() => setShowSimPanel(!showSimPanel)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Mở bảng giả lập cảm biến"
             >
               <Text
                 style={[
@@ -395,21 +410,27 @@ export default function SensorsScreen({ navigation }: Props) {
                   showSimPanel && styles.roundActionIconActive,
                 ]}
               >
-                📅
+                🧪
               </Text>
             </TouchableOpacity>
-            <Text style={styles.roundActionLabel}>TEST SIM</Text>
+            <Text style={styles.roundActionLabel}>GIẢ LẬP</Text>
           </View>
 
           <View style={styles.actionBtnCol}>
             <TouchableOpacity
-              style={[styles.roundActionBtn, neuShadow]}
+              style={[
+                styles.roundActionBtn,
+                isCompact && styles.roundActionBtnCompact,
+                neuShadow,
+              ]}
               onPress={() => navigation.navigate('History')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Xem lịch sử hoạt động"
             >
               <Text style={styles.roundActionIcon}>↺</Text>
             </TouchableOpacity>
-            <Text style={styles.roundActionLabel}>HISTORY</Text>
+            <Text style={styles.roundActionLabel}>LỊCH SỬ</Text>
           </View>
         </View>
 
@@ -469,6 +490,7 @@ export default function SensorsScreen({ navigation }: Props) {
         )}
         </>
         )}
+        </FadeInView>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -531,14 +553,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingBottom: 24,
+    paddingBottom: SPACING.xxl,
+    alignItems: 'center',
+  },
+  fadeWrap: {
+    width: '100%',
     alignItems: 'center',
   },
   dialSection: {
     alignItems: 'center',
     marginTop: 6,
-    marginBottom: 14,
+    marginBottom: SPACING.lg,
     width: '100%',
   },
   scaleLabelsRow: {
@@ -548,14 +573,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   scaleSideLabel: {
-    fontSize: 11,
-    color: NEU_COLORS.textMuted,
+    fontSize: 11.5,
+    color: NEU_COLORS.textSecondary,
     fontWeight: '700',
     marginTop: 28,
   },
   scaleTopLabel: {
-    fontSize: 11,
-    color: NEU_COLORS.textMuted,
+    fontSize: 11.5,
+    color: NEU_COLORS.textSecondary,
     fontWeight: '700',
   },
   dialWrapper: {
@@ -648,19 +673,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dialTempNumber: {
-    fontSize: 42,
-    fontWeight: '300',
-    color: '#9BA3B8',
+    fontSize: 38,
+    fontWeight: '700',
+    color: NEU_COLORS.textPrimary,
     marginVertical: 2,
   },
   dialTempNumberDark: {
     color: '#FFFFFF',
-    fontWeight: '400',
+    fontWeight: '700',
   },
   thresholdSub: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    color: NEU_COLORS.purple,
+    color: NEU_COLORS.purpleDeep,
     marginBottom: 3,
   },
   thresholdSubDark: {
@@ -671,55 +696,37 @@ const styles = StyleSheet.create({
   },
   adjustRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    marginTop: 10,
+    gap: SPACING.sm + 2,
+    marginTop: SPACING.md,
   },
   adjustBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    backgroundColor: NEU_COLORS.card,
+    paddingHorizontal: SPACING.md + 2,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    minHeight: 38,
+    justifyContent: 'center',
   },
   adjustBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: NEU_COLORS.purple,
+    color: NEU_COLORS.purpleDeep,
   },
   themeSwitchPill: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    backgroundColor: NEU_COLORS.card,
+    paddingHorizontal: SPACING.md + 2,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    minHeight: 38,
+    justifyContent: 'center',
   },
   themeSwitchText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: NEU_COLORS.textSecondary,
-  },
-  deviceDropdownPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    width: 220,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  deviceDropdownText: {
     fontSize: 12,
     fontWeight: '700',
-    color: NEU_COLORS.textSecondary,
-  },
-  dropdownChevron: {
-    fontSize: 14,
-    color: NEU_COLORS.textSecondary,
-    fontWeight: '800',
+    color: NEU_COLORS.textPrimary,
   },
   twoCardsRow: {
     flexDirection: 'row',
@@ -761,9 +768,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   metricValue: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
-    color: '#5C6479',
+    color: NEU_COLORS.textPrimary,
   },
   summaryListCard: {
     width: '100%',
@@ -824,12 +831,17 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: NEU_COLORS.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: NEU_COLORS.borderLight,
     marginBottom: 6,
+  },
+  roundActionBtnCompact: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   roundActionBtnActive: {
     backgroundColor: NEU_COLORS.pink,
@@ -843,10 +855,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   roundActionLabel: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '800',
     color: NEU_COLORS.textSecondary,
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   simCard: {
     width: '100%',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DimensionValue, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   NEU_COLORS,
   neuShadow,
@@ -18,6 +18,7 @@ interface RoomCardProps {
   smokeRawAdc?: number;
   onPress: () => void;
   onTogglePrimary?: () => void;
+  cardWidth?: DimensionValue;
 }
 
 const ROOM_ICON_MAP: Record<string, string> = {
@@ -33,6 +34,7 @@ function RoomCard({
   smokeRawAdc = 0,
   onPress,
   onTogglePrimary,
+  cardWidth = '48.5%',
 }: RoomCardProps) {
   const photoUri = ROOM_PHOTOS[room.id] || ROOM_PHOTOS.living_room;
   const displayEmoji = ROOM_ICON_MAP[room.icon] || room.icon || '🏠';
@@ -54,6 +56,7 @@ function RoomCard({
     <TouchableOpacity
       style={[
         styles.card,
+        { width: cardWidth },
         neuShadow,
         smokeAbnormal && !primaryDevice && styles.cardAlert,
       ]}

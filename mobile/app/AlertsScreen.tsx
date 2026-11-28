@@ -10,9 +10,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
+import FadeInView from '../components/ui/FadeInView';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import SkeletonLoader from '../components/ui/SkeletonLoader';
 import StateView from '../components/ui/StateView';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
@@ -37,13 +39,22 @@ export default function AlertsScreen({ navigation }: Props) {
     acknowledgeAlert,
     muteBuzzer,
     refreshAll,
+    showToast,
     triggerDemoSmokeAlert,
   } = useSmartHome();
 
+  const { horizontalPadding } = useResponsiveLayout();
   const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL');
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
   const visibleAlerts =
     filter === 'UNREAD' ? alerts.filter((a) => !a.acknowledged) : alerts;
+
+  const handleAcknowledgeAll = async () => {
+    const unread = alerts.filter((a) => !a.acknowledged);
+    if (unread.length === 0) return;
+    await Promise.all(unread.map((a) => acknowledgeAlert(a.id)));
+    showToast(`Đã xác nhận xử lý ${unread.length} cảnh báo.`, 'success');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -63,7 +74,10 @@ export default function AlertsScreen({ navigation }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
@@ -104,6 +118,18 @@ export default function AlertsScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.actionGroup}>
+              {unreadAlerts >= 2 && (
+                <TouchableOpacity
+                  style={styles.ackAllBtn}
+                  onPress={() => void handleAcknowledgeAll()}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Xác nhận tất cả ${unreadAlerts} cảnh báo`}
+                >
+                  <Text style={styles.ackAllBtnText}>✓ Xác nhận tất cả</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={styles.muteBtn}
                 onPress={muteBuzzer}
@@ -126,6 +152,7 @@ export default function AlertsScreen({ navigation }: Props) {
             </View>
           </View>
 
+          <FadeInView key={filter}>
           {syncError ? (
             <StateView
               variant="error"
@@ -219,6 +246,7 @@ export default function AlertsScreen({ navigation }: Props) {
               );
             })
           )}
+          </FadeInView>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -278,7 +306,21 @@ const styles = StyleSheet.create({
   },
   actionGroup: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
+  },
+  ackAllBtn: {
+    backgroundColor: NEU_COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 9,
+    borderRadius: RADIUS.md,
+    minHeight: 38,
+    justifyContent: 'center',
+  },
+  ackAllBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   muteBtn: {
     backgroundColor: NEU_COLORS.danger,

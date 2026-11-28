@@ -12,8 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
+import FadeInView from '../components/ui/FadeInView';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import StateView from '../components/ui/StateView';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useSmartHome } from '../hooks/useSmartHome';
 import {
   NEU_COLORS,
@@ -44,9 +46,11 @@ export default function SettingsScreen({ navigation }: Props) {
     logout,
   } = useSmartHome();
 
+  const { horizontalPadding } = useResponsiveLayout();
   const [urlInput, setUrlInput] = useState(apiBaseUrl);
   const [testingUrl, setTestingUrl] = useState(false);
 
+  const RENDER_CLOUD_URL = 'https://smarthome-iot-backend.onrender.com';
   const unreadAlerts = alerts.filter((a) => !a.acknowledged).length;
 
   const handleSaveApiUrl = async () => {
@@ -93,10 +97,14 @@ export default function SettingsScreen({ navigation }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <ResponsiveContainer>
+        <FadeInView>
           {syncError && (
             <StateView
               variant="error"
@@ -151,11 +159,26 @@ export default function SettingsScreen({ navigation }: Props) {
               </Text>
             </View>
 
+            <View style={styles.presetRow}>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => {
+                  setUrlInput(RENDER_CLOUD_URL);
+                  showToast('Đã điền sẵn địa chỉ Render Cloud.', 'info');
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Điền nhanh địa chỉ máy chủ Render Cloud"
+              >
+                <Text style={styles.presetChipText}>☁️ Điền nhanh Render Cloud</Text>
+              </TouchableOpacity>
+            </View>
+
             <TextInput
               style={styles.input}
               value={urlInput}
               onChangeText={setUrlInput}
-              placeholder="http://192.168.1.x:3000"
+              placeholder="https://smarthome-iot-backend.onrender.com"
               placeholderTextColor={NEU_COLORS.textMuted}
               autoCapitalize="none"
               editable={!testingUrl}
@@ -216,6 +239,7 @@ export default function SettingsScreen({ navigation }: Props) {
           >
             <Text style={styles.logoutBtnText}>Đăng Xuất</Text>
           </TouchableOpacity>
+        </FadeInView>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -237,9 +261,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxl,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.sm,
+  },
+  presetChip: {
+    backgroundColor: NEU_COLORS.pastelPurple,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+  },
+  presetChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: NEU_COLORS.purpleDeep,
   },
   card: {
     backgroundColor: NEU_COLORS.card,
