@@ -53,3 +53,5 @@ GoogleService-Info.plist
 .pio/
 build/
 coverage/
+broker/passwd
+broker/certs/

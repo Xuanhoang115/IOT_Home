@@ -4,12 +4,10 @@
 // Giúp hệ thống chạy 100% thời gian thực (< 40ms) KỂ CẢ KHI ĐÃ TẮT BACKEND SERVER!
 // ============================================================================
 
-const EMQX_WSS_URL =
-  process.env.EXPO_PUBLIC_MQTT_WSS_URL ||
-  'wss://u1a4013a.ala.eu-central-1.emqxsl.com:8084/mqtt';
-const EMQX_USER = process.env.EXPO_PUBLIC_MQTT_USERNAME || 'smarthome_esp32';
-const EMQX_PASS = process.env.EXPO_PUBLIC_MQTT_PASSWORD || 'admin123';
-const HOME_ID = process.env.EXPO_PUBLIC_HOME_ID || 'home1';
+const EMQX_WSS_URL = (process.env.EXPO_PUBLIC_MQTT_WSS_URL || '').trim();
+const EMQX_USER = (process.env.EXPO_PUBLIC_MQTT_USERNAME || '').trim();
+const EMQX_PASS = (process.env.EXPO_PUBLIC_MQTT_PASSWORD || '').trim();
+const HOME_ID = (process.env.EXPO_PUBLIC_HOME_ID || 'home1').trim();
 
 type MqttMessageHandler = (topic: string, payload: Record<string, unknown>, isRetained: boolean) => void;
 type MqttConnectionHandler = (connected: boolean) => void;
@@ -117,6 +115,9 @@ export class DirectCloudMqttService {
 
   private connect(): void {
     if (typeof WebSocket === 'undefined') return;
+    if (!EMQX_WSS_URL || !EMQX_USER || !EMQX_PASS) {
+      return;
+    }
     if (this.ws) {
       try {
         this.ws.close();
