@@ -34,8 +34,9 @@ Preferences prefs;
 static char topicPrefix[48];  // "smarthome/<HOME_ID>"
 
 // Trang thai thiet bi (reportedState) & Cau hinh AUTO luu trong Flash NVS
-bool light1On = false;
-bool light2On = false;
+bool light1On = false;         // Phong khach (1 bong - D25)
+bool light2On = false;         // Phong ngu 1 (2 bong song song - D26)
+bool light3On = false;         // Phong ngu 2 (1 bong - D23)
 bool fanOn = false;
 bool fanAuto = false;          // mode cua he thong/fan1: AUTO / MANUAL
 bool motionAutoLight = true;   // AUTO: tu bat/tat Den Phong khach (light1) theo PIR
@@ -90,7 +91,7 @@ struct Button {
   bool lastRead;
   unsigned long changedAt;
 };
-Button btnDoor = {PIN_BTN_DOOR, HIGH, HIGH, 0};
+Button btnBedroom = {PIN_BTN_BEDROOM, HIGH, HIGH, 0};
 Button btnLight = {PIN_BTN_LIGHT, HIGH, HIGH, 0};
 
 // ---------------------------------------------------------------------------
@@ -153,6 +154,7 @@ void triggerDoorFeedbackBeep(int count) {
 void applyOutputs() {
   digitalWrite(PIN_LED1, light1On ? HIGH : LOW);
   digitalWrite(PIN_LED2, light2On ? HIGH : LOW);
+  digitalWrite(PIN_LED3, light3On ? HIGH : LOW);
   digitalWrite(PIN_FAN, fanOn ? HIGH : LOW);
   // Coi chi hu khi co bao dong KHOI / LUA hoac tieng pip phan hoi dong mo cua
   bool buzzerActive = (smokeAlarm && !buzzerMuted) || (millis() < doorBeepUntil);
@@ -199,6 +201,9 @@ void publishDeviceState(const char* deviceId, const char* requestId, const char*
   } else if (strcmp(deviceId, "light2") == 0) {
     rs["power"] = light2On ? "ON" : "OFF";
     rs["mode"] = "MANUAL";
+  } else if (strcmp(deviceId, "light3") == 0) {
+    rs["power"] = light3On ? "ON" : "OFF";
+    rs["mode"] = "MANUAL";
   } else if (strcmp(deviceId, "fan1") == 0) {
     rs["power"] = fanOn ? "ON" : "OFF";
     rs["mode"] = fanAuto ? "AUTO" : "MANUAL";
@@ -225,6 +230,8 @@ void publishAllStates(const char* source) {
   publishDeviceState("light1", reqId, source, false);
   mqtt.loop();
   publishDeviceState("light2", reqId, source, false);
+  mqtt.loop();
+  publishDeviceState("light3", reqId, source, false);
   mqtt.loop();
   publishDeviceState("fan1", reqId, source, false);
   mqtt.loop();
@@ -375,11 +382,14 @@ void handleCommand(const char* deviceId, JsonDocument& doc) {
   JsonObjectConst ds = doc["desiredState"];
   if (ds.isNull()) return;
 
-  if (strcmp(deviceId, "light1") == 0 || strcmp(deviceId, "light2") == 0) {
+  if (strcmp(deviceId, "light1") == 0 || strcmp(deviceId, "light2") == 0 ||
+      strcmp(deviceId, "light3") == 0) {
     const char* p = ds["power"] | "";
     bool on = strcmp(p, "ON") == 0;
     if (strcmp(p, "ON") != 0 && strcmp(p, "OFF") != 0) return;
-    if (deviceId[5] == '1') light1On = on; else light2On = on;
+    if (deviceId[5] == '1') light1On = on;
+    else if (deviceId[5] == '2') light2On = on;
+    else light3On = on;
   } else if (strcmp(deviceId, "fan1") == 0) {
     const char* m = ds["mode"] | "";
     const char* p = ds["power"] | "";
@@ -578,12 +588,21 @@ bool buttonPressed(Button& b) {
 }
 
 void handleButtons() {
-  if (buttonPressed(btnDoor)) {
-    // Nhan nut: dao trang thai cua theo y nguoi dung (khong tu dong theo PIR)
-    setDoor(!doorOpen, doorOpen ? DOOR_ANGLE_CLOSED : DOOR_ANGLE_OPEN);
-    char reqId[40];
-    snprintf(reqId, sizeof(reqId), "btn_door_%lu", millis());
-    publishDeviceState("door1", reqId, "PHYSICAL_BUTTON", false);
+  // Nut D18 (PIN_BTN_BEDROOM): Bat/Tat dong thoi CA 3 DEN PHONG NGU (light2 [2 bong] + light3 [1 bong])
+  if (buttonPressed(btnBedroom)) {
+    bool nextBedroomOn = !(light2On && light3On);
+    light2On = nextBedroomOn;
+    light3On = nextBedroomOn;
+    applyOutputs();
+    tOled = 0;
+    char reqId2[40], reqId3[40];
+    snprintf(reqId2, sizeof(reqId2), "btn_bed2_%lu", millis());
+    snprintf(reqId3, sizeof(reqId3), "btn_bed3_%lu", millis());
+    publishDeviceState("light2", reqId2, "PHYSICAL_BUTTON", false);
+    mqtt.loop();
+    publishDeviceState("light3", reqId3, "PHYSICAL_BUTTON", false);
+    Serial.printf("[BTN] Nut D18 Phong ngu -> %s ca 3 den (light2 + light3)\n",
+                  nextBedroomOn ? "BAT" : "TAT");
   }
 
   // Nut D19 (BTN_LIGHT):
@@ -885,10 +904,11 @@ void updateOledScreen() {
   oledPrintLine(4, line);
   oledPrintLine(5, "");
 
-  // Dong 4 (Page 6): Trang thai Den 1, Den 2, Quat
-  snprintf(line, sizeof(line), "D1:%s D2:%s F:%s",
-           light1On ? "ON " : "OFF",
-           light2On ? "ON " : "OFF",
+  // Dong 4 (Page 6): Trang thai 3 nhom Den (D1=PK, D2=PN1, D3=PN2) va Quat
+  snprintf(line, sizeof(line), "D1:%c D2:%c D3:%c F:%s",
+           light1On ? '1' : '0',
+           light2On ? '1' : '0',
+           light3On ? '1' : '0',
            fanOn ? (fanAuto ? "AUT" : "ON ") : "OFF");
   oledPrintLine(6, line);
   oledPrintLine(7, "");
@@ -913,10 +933,11 @@ void setup() {
 
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_LED3, OUTPUT);
   pinMode(PIN_FAN, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_PIR, INPUT);
-  pinMode(PIN_BTN_DOOR, INPUT_PULLUP);
+  pinMode(PIN_BTN_BEDROOM, INPUT_PULLUP);
   pinMode(PIN_BTN_LIGHT, INPUT_PULLUP);
   pinMode(PIN_DOOR_SENSOR, INPUT_PULLUP);
   pinMode(PIN_FLAME, INPUT_PULLUP);

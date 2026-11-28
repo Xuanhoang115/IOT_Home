@@ -10,9 +10,12 @@ import {
 
 describe('Unit Tests - Zod Validation, Deduplication, Hysteresis & Alert Cooldown', () => {
   describe('1. Zod Validation Schemas cho Lệnh Điều Khiển Thiết Bị', () => {
-    it('chấp nhận lệnh hợp lệ cho light1, light2, fan1 và door1', () => {
+    it('chấp nhận lệnh hợp lệ cho light1, light2, light3, fan1 và door1', () => {
       const lightState = validateDeviceDesiredState('light1', { power: 'ON', mode: 'MANUAL' });
       expect(lightState).toEqual({ power: 'ON', mode: 'MANUAL' });
+
+      const light3State = validateDeviceDesiredState('light3', { power: 'ON' });
+      expect(light3State).toEqual({ power: 'ON' });
 
       const fanState = validateDeviceDesiredState('fan1', { mode: 'AUTO' });
       expect(fanState).toEqual({ mode: 'AUTO' });

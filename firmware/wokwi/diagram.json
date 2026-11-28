@@ -43,7 +43,7 @@
       "id": "led_bed",
       "top": -180,
       "left": -60,
-      "attrs": { "color": "yellow", "label": "Den P.Ngu (D26)" }
+      "attrs": { "color": "yellow", "label": "P.Ngu 1 (2b D26)" }
     },
     {
       "type": "wokwi-resistor",
@@ -54,16 +54,30 @@
     },
     {
       "type": "wokwi-led",
+      "id": "led_bed2",
+      "top": -180,
+      "left": 100,
+      "attrs": { "color": "orange", "label": "P.Ngu 2 (1b D23)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r4",
+      "top": -65,
+      "left": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
       "id": "led_fan",
       "top": -180,
-      "left": 30,
+      "left": 20,
       "attrs": { "color": "cyan", "label": "Quat 5V (D27)" }
     },
     {
       "type": "wokwi-resistor",
       "id": "r3",
       "top": -65,
-      "left": 20,
+      "left": 10,
       "attrs": { "value": "220" }
     },
     {
@@ -113,14 +127,14 @@
       "id": "btn_door",
       "top": 220,
       "left": 210,
-      "attrs": { "color": "green", "label": "Nut Cua (D18)" }
+      "attrs": { "color": "green", "label": "Nut P.Ngu 3D (D18)" }
     },
     {
       "type": "wokwi-pushbutton",
       "id": "btn_light",
       "top": 220,
       "left": 320,
-      "attrs": { "color": "blue", "label": "Den / Mode (D19)" }
+      "attrs": { "color": "blue", "label": "Nut P.Khach (D19)" }
     }
   ],
   "connections": [
@@ -134,6 +148,10 @@
     [ "esp:26", "r2:1", "orange", [ "h-30", "v-200" ] ],
     [ "r2:2", "led_bed:A", "orange", [ "v0" ] ],
     [ "led_bed:C", "esp:GND.1", "black", [ "v20", "h40" ] ],
+
+    [ "esp:23", "r4:1", "gold", [ "h20", "v-130" ] ],
+    [ "r4:2", "led_bed2:A", "gold", [ "v0" ] ],
+    [ "led_bed2:C", "esp:GND.2", "black", [ "v20", "h-10" ] ],
 
     [ "esp:27", "r3:1", "cyan", [ "h-20", "v-210" ] ],
     [ "r3:2", "led_fan:A", "cyan", [ "v0" ] ],

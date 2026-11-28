@@ -29,13 +29,6 @@ import { RoomId, RootStackParamList } from '../types/smarthome';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Devices'>;
 
-const CATEGORIES: CategoryOption[] = [
-  { id: 'ALL', label: 'Tất cả (4)' },
-  { id: 'living_room', label: 'Phòng khách' },
-  { id: 'bedroom', label: 'Phòng ngủ' },
-  { id: 'kitchen', label: 'Phòng bếp' },
-];
-
 export default function DevicesScreen({ navigation, route }: Props) {
   const {
     devices,
@@ -51,6 +44,13 @@ export default function DevicesScreen({ navigation, route }: Props) {
     refreshAll,
     setSimulateEsp32Offline,
   } = useSmartHome();
+
+  const categories: CategoryOption[] = [
+    { id: 'ALL', label: `Tất cả (${devices.length})` },
+    { id: 'living_room', label: 'Phòng khách' },
+    { id: 'bedroom', label: 'Phòng ngủ' },
+    { id: 'kitchen', label: 'Phòng bếp' },
+  ];
 
   const { cardWidth, horizontalPadding, isCompact } = useResponsiveLayout();
   const [selectedRoom, setSelectedRoom] = useState<RoomId | 'ALL'>(
@@ -95,7 +95,7 @@ export default function DevicesScreen({ navigation, route }: Props) {
         <SearchBar value={search} onChangeText={setSearch} />
 
         <CategoryTabs
-          categories={CATEGORIES}
+          categories={categories}
           selectedId={selectedRoom}
           onSelect={setSelectedRoom}
         />

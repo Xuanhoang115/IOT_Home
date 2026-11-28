@@ -5,16 +5,18 @@
 // ============================================================================
 
 // ---- Chan GPIO ----
-#define PIN_LED1        25   // light1 (Phong khach)
-#define PIN_LED2        26   // light2 (Phong ngu)
+#define PIN_LED1        25   // light1 (Den Phong khach - 1 bong LED)
+#define PIN_LED2        26   // light2 (Den Phong ngu 1 - 2 bong LED mac song song, moi bong 1 tro 220 ohm)
+#define PIN_LED3        23   // light3 (Den Phong ngu 2 - 1 bong LED)
 #define PIN_FAN         27   // MOSFET quat 5V
 #define PIN_SERVO       13   // Servo SG90 (cua chinh), nguon 5V ngoai
 #define PIN_BUZZER      14   // Active buzzer
 #define PIN_DHT         4    // DHT22 DATA
 #define PIN_PIR         35   // PIR HC-SR501 OUT (input-only)
 #define PIN_MQ2         34   // MQ-2 AO qua cau phan ap (ADC1_CH6)
-#define PIN_BTN_DOOR    18   // Nut cua (INPUT_PULLUP)
-#define PIN_BTN_LIGHT   19   // Nut den / tat coi (INPUT_PULLUP)
+#define PIN_BTN_BEDROOM 18   // Nut vat ly Phong ngu: bat/tat ca 3 den (light2 + light3)
+#define PIN_BTN_DOOR    18   // Alias tuong thich nguoc chan D18
+#define PIN_BTN_LIGHT   19   // Nut vat ly Phong khach: bat/tat light1 / tat coi / giu 1.8s doi Mode
 #define PIN_DOOR_SENSOR 32   // Cam bien tu cua MC-38 (INPUT_PULLUP, GND = DONG)
 #define PIN_FLAME       33   // Cam bien lua Flame Sensor DO (INPUT_PULLUP, LOW = CO LUA)
 #define PIN_OLED_SDA    21   // OLED 0.96" I2C SDA

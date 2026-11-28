@@ -111,8 +111,28 @@ export class FirebaseService {
           },
         };
       }
-      if (roomsSnap.exists()) this.memoryStore.rooms[homeId] = roomsSnap.val();
-      if (devicesSnap.exists()) this.memoryStore.devices[homeId] = devicesSnap.val();
+      if (roomsSnap.exists()) {
+        const remoteRooms = roomsSnap.val() as Record<RoomId, RoomRecord>;
+        const defaultRooms = this.memoryStore.rooms[homeId]!;
+        const mergedRooms = { ...defaultRooms, ...remoteRooms };
+        if (mergedRooms.bedroom && !mergedRooms.bedroom.deviceIds.includes('light3')) {
+          mergedRooms.bedroom = {
+            ...mergedRooms.bedroom,
+            deviceIds: [...mergedRooms.bedroom.deviceIds, 'light3'],
+          };
+          this.bgWrite(this.db.ref(`rooms/${homeId}/bedroom`).set(mergedRooms.bedroom));
+        }
+        this.memoryStore.rooms[homeId] = mergedRooms;
+      }
+      if (devicesSnap.exists()) {
+        const remoteDevices = devicesSnap.val() as Partial<Record<DeviceId, DeviceRecord>>;
+        const defaultDevices = this.memoryStore.devices[homeId]!;
+        const mergedDevices = { ...defaultDevices, ...remoteDevices } as Record<DeviceId, DeviceRecord>;
+        if (!remoteDevices.light3) {
+          this.bgWrite(this.db.ref(`devices/${homeId}/light3`).set(defaultDevices.light3));
+        }
+        this.memoryStore.devices[homeId] = mergedDevices;
+      }
       if (latestSnap.exists()) this.memoryStore.latestSensors[homeId] = latestSnap.val();
       if (alertsSnap.exists()) this.memoryStore.alerts[homeId] = alertsSnap.val();
       if (logsSnap.exists()) this.memoryStore.activityLogs[homeId] = logsSnap.val();

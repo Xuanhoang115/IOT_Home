@@ -1,7 +1,7 @@
 ﻿======================================================================
 SMART HOME IoT 2026 - EVIDENCE LOG
 Step      : Backend MQTT Cloud TLS (:8883) Smoke Test
-Timestamp : 2026-11-28 16:07:25 +07:00
+Timestamp : 2026-11-28 18:21:29 +07:00
 ======================================================================
 
 
@@ -11,19 +11,22 @@ Timestamp : 2026-11-28 16:07:25 +07:00
 ==========================================================
  SMART HOME IoT 2026 - KIß╗éM TRA Kß║╛T Nß╗ÉI HIVEMQ CLOUD (TLS)
 ==========================================================
-─Éang kß║┐t nß╗æi tß╗¢i mqtts://u1a4013a.ala.eu-central-1.emqxsl.com:8883 vß╗¢i ClientID=smarthome-tester-49003a...
+─Éang kß║┐t nß╗æi tß╗¢i mqtts://u1a4013a.ala.eu-central-1.emqxsl.com:8883 vß╗¢i ClientID=smarthome-tester-47d5d8...
 [OK] ─É├ú kß║┐t nß╗æi TLS th├ánh c├┤ng tß╗¢i HiveMQ Cloud!
 [OK] ─É├ú subscribe th├ánh c├┤ng topic: smarthome/home1/# (QoS 1)
-[RETAINED/LIVE MSG] Topic: smarthome/home1/door1/state | Payload: {"requestId":"boot_5182","homeId":"home1","deviceId":"door1","reportedState":{"doorState":"CLOSED","currentAngle":0,"positionVerified":false},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004931}
-[RETAINED/LIVE MSG] Topic: smarthome/home1/esp32/status | Payload: {"homeId":"home1","deviceId":"esp32_main","online":false,"reason":"lwt_unexpected_disconnect","timestamp":0}
-[RETAINED/LIVE MSG] Topic: smarthome/home1/fan1/state | Payload: {"requestId":"boot_5182","homeId":"home1","deviceId":"fan1","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004930}
-[RETAINED/LIVE MSG] Topic: smarthome/home1/light1/state | Payload: {"requestId":"boot_5182","homeId":"home1","deviceId":"light1","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004927}
-[RETAINED/LIVE MSG] Topic: smarthome/home1/light2/state | Payload: {"requestId":"boot_5182","homeId":"home1","deviceId":"light2","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004928}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/door1/state | Payload: {"requestId":"boot_5200","homeId":"home1","deviceId":"door1","reportedState":{"doorState":"CLOSED","currentAngle":0,"positionVerified":false},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004949}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/esp32/status | Payload: {"homeId":"home1","deviceId":"esp32_main","online":true,"systemMode":"MANUAL","tempThresholdHigh":31,"tempThresholdLow":29.5,"smokeThresholdAdc":2000,"motionAutoLight":false,"rssi":-59,"uptimeSeconds":5,"firmwareVersion":"1.0.0","timestamp":1763500004943}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/fan1/state | Payload: {"requestId":"boot_5200","homeId":"home1","deviceId":"fan1","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004948}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/light1/state | Payload: {"requestId":"boot_5200","homeId":"home1","deviceId":"light1","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004945}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/light2/state | Payload: {"requestId":"boot_5200","homeId":"home1","deviceId":"light2","reportedState":{"power":"OFF","mode":"MANUAL"},"status":"OK","source":"BOOT_SYNC","isDuplicate":false,"timestamp":1763500004946}
 [RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/humidity | Payload: {"homeId":"home1","sensorId":"dht22_hum","type":"humidity","value":76.4,"unit":"%","roomId":"living_room","status":"OK","timestamp":1795028650595}
 [RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/motion | Payload: {"homeId":"home1","sensorId":"pir_living","type":"motion","motionDetected":true,"roomId":"living_room","timestamp":1795028433969}
 [RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/smoke | Payload: {"homeId":"home1","sensorId":"mq2_kitchen","type":"smoke","rawAdc":24,"smokeLevelPercent":0.6,"thresholdAdc":2200,"isWarmedUp":true,"abnormal":false,"roomId":"kitchen","timestamp":1795028651042}
 [RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/temperature | Payload: {"homeId":"home1","sensorId":"dht22_temp","type":"temperature","value":30.9,"unit":"C","roomId":"living_room","status":"OK","timestamp":1795028650593}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/smoke | Payload: {"homeId":"home1","sensorId":"mq2_kitchen","type":"smoke","rawAdc":3647,"smokeLevelPercent":89.1,"thresholdAdc":2200,"isWarmedUp":true,"abnormal":true,"roomId":"kitchen","timestamp":1795864892793}
 [OK] ─Éang ─æ├│ng kß║┐t nß╗æi kiß╗âm thß╗¡ an to├án...
+[RETAINED/LIVE MSG] Topic: smarthome/home1/esp32/status | Payload: {"homeId":"home1","deviceId":"esp32_main","online":true,"systemMode":"MANUAL","tempThresholdHigh":31,"tempThresholdLow":29.5,"smokeThresholdAdc":2000,"motionAutoLight":false,"rssi":-61,"uptimeSeconds":41,"firmwareVersion":"1.0.0","timestamp":1795864893583}
+[RETAINED/LIVE MSG] Topic: smarthome/home1/sensors/motion | Payload: {"homeId":"home1","sensorId":"pir_living","type":"motion","motionDetected":true,"roomId":"living_room","timestamp":1795864893631}
 [HO├ÇN Tß║ñT] Kiß╗âm thß╗¡ HiveMQ Cloud TLS th├ánh c├┤ng!
 
 

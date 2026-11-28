@@ -232,12 +232,11 @@
 
       <g filter="url(#cardShadow)">
         <rect x="36" y="506" width="548" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
-        <text x="52" y="527" fill="#0f172a" font-size="13" font-weight="800">5. LED 1 (light1 - P.Khách) &amp; LED 2 (light2 - P.Ngủ)</text>
-        <circle cx="64" cy="547" r="7" fill="#ef4444"/>
-        <text x="78" y="551" fill="#334155" font-size="11.5" font-weight="700">LED 1: D25 → [Trở 220Ω] → Anode (+) → Cathode (−) → GND</text>
-        <circle cx="64" cy="567" r="7" fill="#eab308"/>
-        <text x="78" y="571" fill="#334155" font-size="11.5" font-weight="700">LED 2: D26 → [Trở 220Ω] → Anode (+) → Cathode (−) → GND</text>
-        <text x="568" y="526" text-anchor="end" fill="#2563eb" font-size="11.5" font-weight="800">D25 / D26</text>
+        <text x="52" y="525" fill="#0f172a" font-size="12.5" font-weight="800">5. 4 ĐÈN LED: P.Khách (D25) + P.Ngủ 1 (2 bóng D26) + P.Ngủ 2 (1 bóng D23)</text>
+        <circle cx="62" cy="544" r="6" fill="#ef4444"/>
+        <text x="74" y="548" fill="#334155" font-size="11" font-weight="700">LED 1 (P.Khách): D25 → [220Ω] → LED → GND  |  LED 3 (P.Ngủ 2): D23 → [220Ω] → LED → GND</text>
+        <circle cx="62" cy="565" r="6" fill="#eab308"/>
+        <text x="74" y="569" fill="#334155" font-size="11" font-weight="700">LED 2 (P.Ngủ 1 - 2 bóng): D26 → 2 nhánh song song [220Ω → LED → GND]</text>
       </g>
       <line x1="584" y1="516" x2="670" y2="516" stroke="#2563eb" stroke-width="3"/>
       <line x1="584" y1="558" x2="670" y2="558" stroke="#2563eb" stroke-width="3"/>
@@ -299,9 +298,9 @@
 
       <g filter="url(#cardShadow)">
         <rect x="1016" y="504" width="548" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
-        <text x="1034" y="528" fill="#0f172a" font-size="13" font-weight="800">11. Nút nhấn 1 — BTN_DOOR (GPIO 18 • INPUT_PULLUP)</text>
-        <text x="1034" y="549" fill="#334155" font-size="11.5">• Nhấn tay đóng/mở cửa Servo SG90 (0° ↔ 90°) tại mô hình (chống rung 50ms)</text>
-        <text x="1034" y="566" fill="#64748b" font-size="11">• 1 chân nối GPIO 18, 1 chân nối GND Chung (không cần trở ngoài)</text>
+        <text x="1034" y="528" fill="#0f172a" font-size="13" font-weight="800">11. Nút nhấn 1 — BTN_BEDROOM (GPIO 18 • INPUT_PULLUP)</text>
+        <text x="1034" y="549" fill="#334155" font-size="11.5">• Nhấn tay bật/tắt đồng thời CẢ 3 ĐÈN Phòng ngủ (D26 [2 bóng] + D23 [1 bóng])</text>
+        <text x="1034" y="566" fill="#64748b" font-size="11">• 1 chân nối GPIO 18, 1 chân nối GND Chung • Trên Web/App tách riêng 2 công tắc</text>
       </g>
       <line x1="930" y1="546" x2="1016" y2="546" stroke="#0891b2" stroke-width="3"/>
 
@@ -340,10 +339,10 @@
         <text x="430" y="956"><tspan font-weight="800" fill="#7c3aed">GPIO 4 </tspan> — Cảm biến DHT22 DATA</text>
         <text x="430" y="980"><tspan font-weight="800" fill="#7c3aed">GPIO 35</tspan> — Cảm biến PIR HC-SR501</text>
         <text x="430" y="1004"><tspan font-weight="800" fill="#7c3aed">GPIO 34</tspan> — MQ-2 AO (10kΩ/10kΩ)</text>
-        <text x="820" y="932"><tspan font-weight="800" fill="#0891b2">GPIO 18</tspan> — Nút nhấn Cửa (BTN_DOOR)</text>
-        <text x="820" y="956"><tspan font-weight="800" fill="#0891b2">GPIO 19</tspan> — Nút Đèn/Tắt còi/Mode</text>
+        <text x="820" y="932"><tspan font-weight="800" fill="#0891b2">GPIO 18</tspan> — Nút 3 Đèn P.Ngủ (D26+D23)</text>
+        <text x="820" y="956"><tspan font-weight="800" fill="#0891b2">GPIO 19</tspan> — Nút Đèn P.Khách / Tắt còi</text>
         <text x="820" y="980"><tspan font-weight="800" fill="#0891b2">GPIO 32</tspan> — Cảm biến từ cửa MC-38</text>
-        <text x="820" y="1004"><tspan font-weight="800" fill="#7c3aed">GPIO 33</tspan> — Cảm biến lửa Flame DO</text>
+        <text x="820" y="1004"><tspan font-weight="800" fill="#2563eb">GPIO 23</tspan> — LED 3 P.Ngủ 2 (1 bóng 220Ω)</text>
         <text x="1205" y="932"><tspan font-weight="800" fill="#16a34a">GPIO 21</tspan> — OLED 0.96" I2C SDA</text>
         <text x="1205" y="956"><tspan font-weight="800" fill="#16a34a">GPIO 22</tspan> — OLED 0.96" I2C SCL/SCK</text>
         <text x="1205" y="980"><tspan font-weight="800" fill="#dc2626">5V_EXT </tspan> — Adapter 5V-2A (Tụ 1000µF)</text>

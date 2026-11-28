@@ -63,7 +63,7 @@ export function createInitialSeedData(homeId = 'home1', now = 1762855200000): Fu
           id: 'bedroom',
           name: 'Phòng ngủ',
           icon: 'bed',
-          deviceIds: ['light2'],
+          deviceIds: ['light2', 'light3'],
         },
         kitchen: {
           id: 'kitchen',
@@ -77,7 +77,7 @@ export function createInitialSeedData(homeId = 'home1', now = 1762855200000): Fu
       [homeId]: {
         light1: {
           id: 'light1',
-          name: 'Đèn Phòng khách',
+          name: 'Đèn Phòng khách (1 bóng)',
           type: 'light',
           roomId: 'living_room',
           desiredState: { power: 'OFF', mode: 'MANUAL' },
@@ -87,7 +87,17 @@ export function createInitialSeedData(homeId = 'home1', now = 1762855200000): Fu
         },
         light2: {
           id: 'light2',
-          name: 'Đèn Phòng ngủ',
+          name: 'Đèn Phòng ngủ 1 (2 bóng)',
+          type: 'light',
+          roomId: 'bedroom',
+          desiredState: { power: 'OFF', mode: 'MANUAL' },
+          reportedState: { power: 'OFF', mode: 'MANUAL' },
+          lastCommandStatus: 'ACKED',
+          lastUpdated: now,
+        },
+        light3: {
+          id: 'light3',
+          name: 'Đèn Phòng ngủ 2 (1 bóng)',
           type: 'light',
           roomId: 'bedroom',
           desiredState: { power: 'OFF', mode: 'MANUAL' },

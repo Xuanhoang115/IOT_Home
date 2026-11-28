@@ -53,6 +53,22 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
 
   const doorDevice = roomDevices.find((d) => d.id === 'door1');
   const fanDevice = roomDevices.find((d) => d.id === 'fan1');
+  const bedroomLights = roomDevices.filter((d) => d.id === 'light2' || d.id === 'light3');
+  const areAllBedroomLightsOn =
+    bedroomLights.length > 0 &&
+    bedroomLights.every((d) => {
+      const p =
+        d.lastCommandStatus === 'PENDING'
+          ? d.desiredState.power
+          : d.reportedState.power;
+      return p === 'ON';
+    });
+
+  const handleToggleAllBedroomLights = (power: 'ON' | 'OFF') => {
+    bedroomLights.forEach((d) => {
+      void sendDeviceCommand(d.id, { power });
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -131,6 +147,59 @@ export default function RoomDetailScreen({ navigation, route }: Props) {
               Giá trị ADC hiện tại: {latestSensors.smoke.rawAdc} / 4095 (
               {latestSensors.smoke.smokeLevelPercent}%)
             </Text>
+          </View>
+        )}
+
+        {/* Điều khiển nhanh cả 3 đèn Phòng ngủ (2 phòng: 2 bóng + 1 bóng) */}
+        {roomId === 'bedroom' && bedroomLights.length > 0 && (
+          <View style={styles.infoCard}>
+            <Text style={styles.cardTitle}>
+              💡 Điều khiển 2 Phòng Ngủ (Tổng 3 đèn LED)
+            </Text>
+            <Text style={styles.cardText}>
+              Bạn có thể bật/tắt riêng từng phòng ở 2 thẻ phía trên (Phòng ngủ 1 gồm 2 bóng trên D26, Phòng ngủ 2 gồm 1 bóng trên D23), hoặc bật/tắt nhanh cả 3 đèn cùng lúc giống nút bấm vật lý D18:
+            </Text>
+            <View style={styles.btnRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modeBtn,
+                  areAllBedroomLightsOn && styles.modeBtnActive,
+                ]}
+                onPress={() => handleToggleAllBedroomLights('ON')}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Bật cả 3 đèn phòng ngủ"
+              >
+                <Text
+                  style={[
+                    styles.modeBtnText,
+                    areAllBedroomLightsOn && styles.modeBtnTextActive,
+                  ]}
+                >
+                  💡 Bật cả 3 đèn (2 phòng)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modeBtn,
+                  !areAllBedroomLightsOn && styles.modeBtnActive,
+                ]}
+                onPress={() => handleToggleAllBedroomLights('OFF')}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Tắt cả 3 đèn phòng ngủ"
+              >
+                <Text
+                  style={[
+                    styles.modeBtnText,
+                    !areAllBedroomLightsOn && styles.modeBtnTextActive,
+                  ]}
+                >
+                  🌙 Tắt hết 3 đèn
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 

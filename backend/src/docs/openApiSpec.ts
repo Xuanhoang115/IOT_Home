@@ -81,7 +81,7 @@ export const openApiSpec = {
         type: 'object',
         required: ['id', 'name', 'type', 'roomId', 'desiredState', 'reportedState', 'lastCommandStatus', 'lastUpdated'],
         properties: {
-          id: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'], example: 'light1' },
+          id: { type: 'string', enum: ['light1', 'light2', 'light3', 'fan1', 'door1'], example: 'light1' },
           name: { type: 'string', example: 'Đèn Phòng Khách' },
           type: { type: 'string', enum: ['light', 'fan', 'door'], example: 'light' },
           roomId: { type: 'string', enum: ['living_room', 'bedroom', 'kitchen'], example: 'living_room' },
@@ -100,7 +100,7 @@ export const openApiSpec = {
           icon: { type: 'string', example: 'sofa' },
           deviceIds: {
             type: 'array',
-            items: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+            items: { type: 'string', enum: ['light1', 'light2', 'light3', 'fan1', 'door1'] },
             example: ['light1', 'fan1', 'door1'],
           },
           devices: {
@@ -210,7 +210,7 @@ export const openApiSpec = {
         type: 'object',
         properties: {
           requestId: { type: 'string', example: 'req_1795848968677_abc' },
-          deviceId: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+          deviceId: { type: 'string', enum: ['light1', 'light2', 'light3', 'fan1', 'door1'] },
           desiredState: { $ref: '#/components/schemas/DesiredState' },
           status: { type: 'string', enum: ['PENDING', 'ACKED', 'TIMEOUT', 'FAILED'] },
           requestedBy: { type: 'string', example: 'uid_student_01' },
@@ -410,7 +410,7 @@ export const openApiSpec = {
             name: 'id',
             in: 'path',
             required: true,
-            schema: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+            schema: { type: 'string', enum: ['light1', 'light2', 'light3', 'fan1', 'door1'] },
           },
         ],
         responses: {
@@ -449,7 +449,7 @@ export const openApiSpec = {
             name: 'id',
             in: 'path',
             required: true,
-            schema: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+            schema: { type: 'string', enum: ['light1', 'light2', 'light3', 'fan1', 'door1'] },
           },
         ],
         requestBody: {

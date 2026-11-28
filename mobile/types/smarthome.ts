@@ -1,4 +1,4 @@
-export type DeviceId = 'light1' | 'light2' | 'fan1' | 'door1';
+export type DeviceId = 'light1' | 'light2' | 'light3' | 'fan1' | 'door1';
 export type DeviceType = 'light' | 'fan' | 'door';
 export type RoomId = 'living_room' | 'bedroom' | 'kitchen';
 export type PowerState = 'ON' | 'OFF';

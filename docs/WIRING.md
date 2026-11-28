@@ -19,16 +19,17 @@ Trước khi đấu dây, nhóm bắt buộc tuân thủ các quy tắc phần c
 
 | Thiết bị / Cảm biến | Phòng (Mô hình) | Chân Linh kiện | Chân ESP32 (30-pin) | Nguồn cấp | Ghi chú bắt buộc |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| **LED 1 (`light1`)** | Phòng khách | Anode (`+`) qua trở `220Ω` | **`GPIO 25`** | GPIO 3.3V | Cathode (`-`) nối `GND` |
-| **LED 2 (`light2`)** | Phòng ngủ | Anode (`+`) qua trở `220Ω` | **`GPIO 26`** | GPIO 3.3V | Cathode (`-`) nối `GND` |
+| **LED 1 (`light1`)** | Phòng khách (1 bóng) | Anode (`+`) qua trở `220Ω` | **`GPIO 25`** | GPIO 3.3V | Cathode (`-`) nối `GND Chung` |
+| **LED 2 (`light2`)** | Phòng ngủ 1 (2 bóng) | **2 LED mắc song song**, mỗi bóng qua 1 trở `220Ω` riêng | **`GPIO 26`** | GPIO 3.3V | 2 bóng sáng/tắt cùng nhau (tổng dòng ~18–20mA an toàn cho `D26`) |
+| **LED 3 (`light3`)** | Phòng ngủ 2 (1 bóng) | Anode (`+`) qua trở `220Ω` | **`GPIO 23`** | GPIO 3.3V | Chân GPIO trống an toàn (không strapping), Cathode nối `GND Chung` |
 | **Quạt DC 5V (`fan1`)** | Phòng khách / Bếp | Chân `SIG/PWM` của Module MOSFET | **`GPIO 27`** | **5V Ngoài** | Quạt lấy nguồn 5V qua MOSFET, có diode `1N4007` chống xung ngược |
 | **Cửa Servo SG90 (`door1`)** | Cửa chính (P.Khách) | Dây tín hiệu (Cam/Vàng) | **`GPIO 13`** | **5V Ngoài** | Dây Đỏ nối `5V Ngoài` (có tụ `470–1000µF`), Dây Nâu nối `GND chung` |
 | **Buzzer chủ động** | Trung tâm nhà | Chân `I/O` (Module 3 chân) | **`GPIO 14`** | `3.3V` / `5V` | Dùng module Active Buzzer có transistor kích sẵn |
 | **Cảm biến DHT22** | Phòng khách | Chân `DATA` (Chân 2) | **`GPIO 4`** | **`3.3V`** | Nếu dùng DHT22 4 chân rời thì mắc trở kéo lên `10kΩ` lên `3.3V` |
 | **Cảm biến PIR HC-SR501** | Phòng khách | Chân `OUT` (Giữa) | **`GPIO 35`** | `5V Ngoài` | Ngõ ra `OUT` của HC-SR501 tự động ở mức `3.3V`, vào chân Input-Only `GPIO 35` |
 | **Cảm biến khói MQ-2** | Phòng bếp | Chân `AO` *(qua cầu phân áp)* | **`GPIO 34` (ADC1_CH6)** | `5V Ngoài` | **Bắt buộc qua cầu phân áp 2 điện trở `10kΩ`** trước khi vào `GPIO 34` |
-| **Nút nhấn 1 (`BTN_DOOR`)** | Cửa chính | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 18`** | `INPUT_PULLUP` | Nhấn tay để đóng/mở cửa tại mô hình (chống rung phần mềm `50ms`) |
-| **Nút nhấn 2 (`BTN_LIGHT`)** | Phòng khách | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 19`** | `INPUT_PULLUP` | Nhấn tay bật/tắt đèn hoặc tắt còi báo động khẩn cấp |
+| **Nút nhấn 1 (`BTN_BEDROOM`)** | Phòng ngủ (cả 3 đèn) | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 18`** | `INPUT_PULLUP` | Nhấn tay bật/tắt đồng thời cả 3 đèn phòng ngủ (`light2` + `light3`) |
+| **Nút nhấn 2 (`BTN_LIGHT`)** | Phòng khách (1 đèn) | 1 chân vào GPIO, 1 chân xuống `GND` | **`GPIO 19`** | `INPUT_PULLUP` | Nhấn ngắn bật/tắt `light1` (hoặc tắt còi); giữ `1.8s` đổi `MANUAL ↔ AUTO` |
 | **Màn hình OLED 0.96" I2C** | Trung tâm nhà | `SDA` & `SCK` (`GM009605v4.3`) | **`GPIO 21` (SDA), `GPIO 22` (SCK)** | **`3.3V`** | Giao tiếp I2C `100kHz`, bộ đệm `oledLineCache` 4 dòng không gây trễ MQTT |
 | **Cảm biến từ cửa `MC-38`** | Cửa chính | 1 dây vào GPIO, 1 dây xuống `GND` | **`GPIO 32`** | `INPUT_PULLUP` | Công tắc từ Reed Switch xác thực cửa đã khép kín (`positionVerified`) |
 | **Cảm biến lửa `Flame Sensor`** | Phòng bếp | Chân `DO` (Module đỏ `FE-01`) | **`GPIO 33`** | `3.3V` / `5V` | Tự động ghi nhận mức nghỉ `flameIdleLevel`, kích còi Buzzer ngay khi phát hiện lửa |

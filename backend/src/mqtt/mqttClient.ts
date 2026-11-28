@@ -163,7 +163,7 @@ export class MqttBridgeService {
       }
     };
 
-    const stateTopicRegex = new RegExp(`^smarthome/${this.homeId}/(light1|light2|fan1|door1)/state$`);
+    const stateTopicRegex = new RegExp(`^smarthome/${this.homeId}/(light1|light2|light3|fan1|door1)/state$`);
     if (stateTopicRegex.test(topic)) {
       const validated = mqttStateAckSchema.parse(parsedJson);
       await markLiveIfRealPacket();

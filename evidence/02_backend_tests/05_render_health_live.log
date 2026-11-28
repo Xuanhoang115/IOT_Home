@@ -1,7 +1,7 @@
 ﻿======================================================================
 SMART HOME IoT 2026 - EVIDENCE LOG
 Step      : Render Cloud Backend Healthcheck (/api/health)
-Timestamp : 2026-11-28 16:07:33 +07:00
+Timestamp : 2026-11-28 18:21:38 +07:00
 ======================================================================
 
 {
@@ -13,13 +13,13 @@ Timestamp : 2026-11-28 16:07:33 +07:00
                  "mqttConnected":  true,
                  "esp32Status":  {
                                      "firmwareVersion":  "1.0.0",
-                                     "lastSeen":  1795855096650,
-                                     "online":  false,
-                                     "reason":  "lwt_unexpected_disconnect",
-                                     "rssi":  -64
+                                     "lastSeen":  1795864899013,
+                                     "online":  true,
+                                     "reason":  "live_telemetry",
+                                     "rssi":  -66
                                  },
                  "systemMode":  "MANUAL",
-                 "timestamp":  1795856854372
+                 "timestamp":  1795864899109
              }
 }
 

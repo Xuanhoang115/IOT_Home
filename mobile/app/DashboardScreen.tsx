@@ -104,12 +104,44 @@ export default function DashboardScreen({ navigation }: Props) {
   };
 
   const getRoomPrimaryDevice = (roomId: string) => {
-    if (roomId === 'bedroom') return devices.find((d) => d.id === 'light2');
+    if (roomId === 'bedroom') {
+      const bedroomLights = devices.filter((d) => d.id === 'light2' || d.id === 'light3');
+      const anyOn = bedroomLights.find((d) => {
+        const p =
+          d.lastCommandStatus === 'PENDING'
+            ? d.desiredState.power
+            : d.reportedState.power;
+        return p === 'ON';
+      });
+      return anyOn || bedroomLights[0];
+    }
     if (roomId === 'living_room') return devices.find((d) => d.id === 'light1');
     return undefined;
   };
 
   const handleToggleRoomPrimary = (roomId: string) => {
+    if (roomId === 'bedroom') {
+      const bedroomLights = devices.filter((d) => d.id === 'light2' || d.id === 'light3');
+      if (bedroomLights.length === 0) return;
+      const allOn = bedroomLights.every((d) => {
+        const p =
+          d.lastCommandStatus === 'PENDING'
+            ? d.desiredState.power
+            : d.reportedState.power;
+        return p === 'ON';
+      });
+      const nextPower = allOn ? 'OFF' : 'ON';
+      bedroomLights.forEach((d) => {
+        void sendDeviceCommand(d.id, { power: nextPower });
+      });
+      showToast(
+        nextPower === 'ON'
+          ? 'Đã bật cả 3 đèn Phòng ngủ (2 phòng).'
+          : 'Đã tắt cả 3 đèn Phòng ngủ.',
+        'info'
+      );
+      return;
+    }
     const dev = getRoomPrimaryDevice(roomId);
     if (!dev) return;
     const currentPower =

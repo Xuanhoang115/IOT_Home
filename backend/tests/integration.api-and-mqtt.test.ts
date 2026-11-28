@@ -72,7 +72,7 @@ describe('Integration Tests - Backend REST API, Auth, MQTT Bridge & Simulator E2
     expect(outsiderRes.body.error.code).toBe('FORBIDDEN_HOME_ACCESS');
   });
 
-  it('GET /api/rooms và GET /api/devices trả về danh sách phòng & 4 thiết bị chuẩn của home1', async () => {
+  it('GET /api/rooms và GET /api/devices trả về danh sách phòng & 5 thiết bị chuẩn của home1', async () => {
     const app = createApp({ store, cmdSvc, mqttSvc });
 
     const roomsRes = await request(app).get('/api/rooms').set('Authorization', MEMBER_TOKEN);
@@ -86,6 +86,7 @@ describe('Integration Tests - Backend REST API, Auth, MQTT Bridge & Simulator E2
       'fan1',
       'light1',
       'light2',
+      'light3',
     ]);
   });
 

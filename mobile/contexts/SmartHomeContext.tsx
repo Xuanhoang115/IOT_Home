@@ -48,7 +48,7 @@ import {
   saveStoredSecurityPin,
 } from '../utils/deviceStateMapper';
 
-const STATE_TOPIC_REGEX = /^smarthome\/[^/]+\/(light1|light2|fan1|door1)\/state$/;
+const STATE_TOPIC_REGEX = /^smarthome\/[^/]+\/(light1|light2|light3|fan1|door1)\/state$/;
 
 export interface SmartHomeContextValue {
   user: AuthUser | null;

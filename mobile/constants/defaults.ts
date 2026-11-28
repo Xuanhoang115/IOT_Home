@@ -34,7 +34,7 @@ export const INITIAL_ROOMS: RoomRecord[] = [
     id: 'bedroom',
     name: 'Phòng ngủ',
     icon: '🛏️',
-    deviceIds: ['light2'],
+    deviceIds: ['light2', 'light3'],
   },
   {
     id: 'kitchen',
@@ -48,7 +48,7 @@ export function createInitialDevices(now = Date.now()): DeviceRecord[] {
   return [
     {
       id: 'light1',
-      name: 'Đèn Phòng khách',
+      name: 'Đèn Phòng khách (1 bóng)',
       type: 'light',
       roomId: 'living_room',
       desiredState: { power: 'OFF', mode: 'MANUAL' },
@@ -58,7 +58,17 @@ export function createInitialDevices(now = Date.now()): DeviceRecord[] {
     },
     {
       id: 'light2',
-      name: 'Đèn Phòng ngủ',
+      name: 'Đèn Phòng ngủ 1 (2 bóng)',
+      type: 'light',
+      roomId: 'bedroom',
+      desiredState: { power: 'OFF', mode: 'MANUAL' },
+      reportedState: { power: 'OFF', mode: 'MANUAL' },
+      lastCommandStatus: 'ACKED',
+      lastUpdated: now,
+    },
+    {
+      id: 'light3',
+      name: 'Đèn Phòng ngủ 2 (1 bóng)',
       type: 'light',
       roomId: 'bedroom',
       desiredState: { power: 'OFF', mode: 'MANUAL' },

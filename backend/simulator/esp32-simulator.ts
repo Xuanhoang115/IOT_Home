@@ -49,6 +49,7 @@ export class Esp32SimulatorCore {
       devices: {
         light1: { power: 'OFF', mode: 'MANUAL' },
         light2: { power: 'OFF', mode: 'MANUAL' },
+        light3: { power: 'OFF', mode: 'MANUAL' },
         fan1: { power: 'OFF', mode: 'MANUAL' },
         door1: { doorState: 'CLOSED', currentAngle: 0, positionVerified: false },
       },
@@ -87,7 +88,7 @@ export class Esp32SimulatorCore {
       this.recordRequestId(requestId);
       const current = this.state.devices[deviceId];
 
-      if (deviceId === 'light1' || deviceId === 'light2') {
+      if (deviceId === 'light1' || deviceId === 'light2' || deviceId === 'light3') {
         this.state.devices[deviceId] = {
           power: desiredState.power ?? current.power ?? 'OFF',
           mode: desiredState.mode ?? current.mode ?? 'MANUAL',
@@ -127,7 +128,7 @@ export class Esp32SimulatorCore {
    * Mô phỏng nhấn nút vật lý tại mô hình (có debounce ở tầng phần cứng)
    */
   public simulatePhysicalButtonToggle(
-    deviceId: 'light1' | 'light2' | 'fan1' | 'door1',
+    deviceId: DeviceId,
     now = Date.now()
   ): MqttStateAckPayload {
     const requestId = `btn_phys_${now}`;

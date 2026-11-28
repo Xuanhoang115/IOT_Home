@@ -39,10 +39,11 @@
 #define FIRMWARE_VERSION    "2.0.0-wokwi"
 
 // ---------------------------------------------------------------------------
-// 2. CAU HINH 14 CHAN GPIO (KHOP 100% VOI config.h CUA MACH THAT)
+// 2. CAU HINH 15 CHAN GPIO (KHOP 100% VOI config.h CUA MACH THAT)
 // ---------------------------------------------------------------------------
-#define PIN_LED1        25   // light1 (Den Phong khach)
-#define PIN_LED2        26   // light2 (Den Phong ngu)
+#define PIN_LED1        25   // light1 (Den Phong khach - 1 bong LED)
+#define PIN_LED2        26   // light2 (Den Phong ngu 1 - 2 bong LED song song)
+#define PIN_LED3        23   // light3 (Den Phong ngu 2 - 1 bong LED)
 #define PIN_FAN         27   // fan1 (Quat thong gio - LED xanh mo phong)
 #define PIN_SERVO       13   // door1 (Servo SG90 Cua chinh)
 #define PIN_BUZZER      14   // Active/Piezo Buzzer (doc lap voi light2)
@@ -53,8 +54,9 @@
 #define PIN_DOOR_SENSOR 32   // Cong tac mo phong MC-38 cua (LOW = DONG KHIT)
 #define PIN_OLED_SDA    21   // OLED 0.96" I2C SDA
 #define PIN_OLED_SCL    22   // OLED 0.96" I2C SCL
-#define PIN_BTN_DOOR    18   // Nut nhan Cua (INPUT_PULLUP)
-#define PIN_BTN_LIGHT   19   // Nut nhan Den / Tat coi / Giu 1.8s doi Mode (INPUT_PULLUP)
+#define PIN_BTN_BEDROOM 18   // Nut nhan Phong ngu: Bat/Tat ca 3 den (light2 + light3)
+#define PIN_BTN_DOOR    18   // Alias tuong thich nguoc
+#define PIN_BTN_LIGHT   19   // Nut nhan Phong khach: Bat/Tat light1 / Tat coi / Giu 1.8s doi Mode
 
 #define DOOR_ANGLE_OPEN    90
 #define DOOR_ANGLE_CLOSED  0
@@ -238,6 +240,7 @@ static char topicPrefix[48];
 // Trang thai thiet bi & Cau hinh AUTO luu trong Flash NVS
 bool light1On = false;
 bool light2On = false;
+bool light3On = false;
 bool fanOn = false;
 bool fanAuto = false;
 bool motionAutoLight = true;
@@ -287,7 +290,7 @@ struct Button {
   bool lastRead;
   unsigned long changedAt;
 };
-Button btnDoor = {PIN_BTN_DOOR, HIGH, HIGH, 0};
+Button btnBedroom = {PIN_BTN_BEDROOM, HIGH, HIGH, 0};
 
 // ---------------------------------------------------------------------------
 // 5. TIEN ICH
@@ -343,6 +346,7 @@ void saveAutoConfigToFlash() {
 void applyOutputs() {
   digitalWrite(PIN_LED1, light1On ? HIGH : LOW);
   digitalWrite(PIN_LED2, light2On ? HIGH : LOW);
+  digitalWrite(PIN_LED3, light3On ? HIGH : LOW);
   digitalWrite(PIN_FAN, fanOn ? HIGH : LOW);
 
   bool wantBuzzer = (smokeAlarm && !buzzerMuted) || (millis() < doorBeepUntil);
@@ -388,6 +392,9 @@ void publishDeviceState(const char* deviceId, const char* requestId,
   } else if (strcmp(deviceId, "light2") == 0) {
     rs["power"] = light2On ? "ON" : "OFF";
     rs["mode"] = "MANUAL";
+  } else if (strcmp(deviceId, "light3") == 0) {
+    rs["power"] = light3On ? "ON" : "OFF";
+    rs["mode"] = "MANUAL";
   } else if (strcmp(deviceId, "fan1") == 0) {
     rs["power"] = fanOn ? "ON" : "OFF";
     rs["mode"] = fanAuto ? "AUTO" : "MANUAL";
@@ -412,9 +419,15 @@ void publishAllStates(const char* source) {
   char reqId[40];
   snprintf(reqId, sizeof(reqId), "boot_%lu", millis());
   publishDeviceState("light1", reqId, source, false);
+  mqtt.loop();
   publishDeviceState("light2", reqId, source, false);
+  mqtt.loop();
+  publishDeviceState("light3", reqId, source, false);
+  mqtt.loop();
   publishDeviceState("fan1", reqId, source, false);
+  mqtt.loop();
   publishDeviceState("door1", reqId, source, false);
+  mqtt.loop();
 }
 
 void publishStatus(bool online, bool retain = false) {
@@ -548,12 +561,14 @@ void handleCommand(const char* deviceId, JsonDocument& doc) {
   JsonObjectConst ds = doc["desiredState"];
   if (ds.isNull()) return;
 
-  if (strcmp(deviceId, "light1") == 0 || strcmp(deviceId, "light2") == 0) {
+  if (strcmp(deviceId, "light1") == 0 || strcmp(deviceId, "light2") == 0 ||
+      strcmp(deviceId, "light3") == 0) {
     const char* p = ds["power"] | "";
     if (strcmp(p, "ON") != 0 && strcmp(p, "OFF") != 0) return;
     bool on = strcmp(p, "ON") == 0;
     if (deviceId[5] == '1') light1On = on;
-    else light2On = on;
+    else if (deviceId[5] == '2') light2On = on;
+    else light3On = on;
   } else if (strcmp(deviceId, "fan1") == 0) {
     const char* m = ds["mode"] | "";
     const char* p = ds["power"] | "";
@@ -723,12 +738,21 @@ bool buttonPressed(struct Button& b) {
 }
 
 void handleButtons() {
-  // Nut D18: Mo/Dong Cua Servo
-  if (buttonPressed(btnDoor)) {
-    setDoor(!doorOpen, doorOpen ? DOOR_ANGLE_CLOSED : DOOR_ANGLE_OPEN);
-    char reqId[40];
-    snprintf(reqId, sizeof(reqId), "btn_door_%lu", millis());
-    publishDeviceState("door1", reqId, "PHYSICAL_BUTTON", false);
+  // Nut D18: Bat/Tat dong thoi CA 3 DEN PHONG NGU (light2 [2 bong] + light3 [1 bong])
+  if (buttonPressed(btnBedroom)) {
+    bool nextBedroomOn = !(light2On && light3On);
+    light2On = nextBedroomOn;
+    light3On = nextBedroomOn;
+    applyOutputs();
+    tOled = 0;
+    char reqId2[40], reqId3[40];
+    snprintf(reqId2, sizeof(reqId2), "btn_bed2_%lu", millis());
+    snprintf(reqId3, sizeof(reqId3), "btn_bed3_%lu", millis());
+    publishDeviceState("light2", reqId2, "PHYSICAL_BUTTON", false);
+    mqtt.loop();
+    publishDeviceState("light3", reqId3, "PHYSICAL_BUTTON", false);
+    Serial.printf("[BTN] Nut D18 Phong ngu -> %s ca 3 den (light2 + light3)\n",
+                  nextBedroomOn ? "BAT" : "TAT");
   }
 
   // Nut D19: Bam nhanh = Tat coi hoac Bat/Tat Den P.Khach | Nhan giu >= 1.8s = Doi MANUAL <-> AUTO
@@ -939,9 +963,10 @@ void updateOledScreen() {
   }
   oledPrintLine(5, "");
 
-  snprintf(line, sizeof(line), "D1:%s D2:%s F:%s",
-           light1On ? "ON " : "OFF",
-           light2On ? "ON " : "OFF",
+  snprintf(line, sizeof(line), "D1:%c D2:%c D3:%c F:%s",
+           light1On ? '1' : '0',
+           light2On ? '1' : '0',
+           light3On ? '1' : '0',
            fanOn ? (fanAuto ? "AUT" : "ON ") : "OFF");
   oledPrintLine(6, line);
   oledPrintLine(7, doorOpen ? "CUA: MO (90 DEG)" : "CUA: DONG (0 DEG)");
@@ -965,10 +990,11 @@ void setup() {
 
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_LED3, OUTPUT);
   pinMode(PIN_FAN, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_PIR, INPUT);
-  pinMode(PIN_BTN_DOOR, INPUT_PULLUP);
+  pinMode(PIN_BTN_BEDROOM, INPUT_PULLUP);
   pinMode(PIN_BTN_LIGHT, INPUT_PULLUP);
   pinMode(PIN_DOOR_SENSOR, INPUT_PULLUP);
   pinMode(PIN_FLAME, INPUT_PULLUP);
@@ -1003,8 +1029,8 @@ void setup() {
   mqtt.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
   mqtt.setCallback(onMqttMessage);
   mqtt.setBufferSize(1024);
-  mqtt.setKeepAlive(15);
-  mqtt.setSocketTimeout(5);
+  mqtt.setKeepAlive(60);
+  mqtt.setSocketTimeout(15);
 
   Serial.println("\n[BOOT] Smart Home ESP32 Wokwi Simulator v2.0.0 Ready!");
 }

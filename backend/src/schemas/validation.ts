@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { DesiredState, DeviceId, PowerState } from '../types/smarthome';
 
-export const deviceIdSchema = z.enum(['light1', 'light2', 'fan1', 'door1']);
+export const deviceIdSchema = z.enum(['light1', 'light2', 'light3', 'fan1', 'door1']);
 export const powerStateSchema = z.enum(['ON', 'OFF']);
 export const systemModeSchema = z.enum(['MANUAL', 'AUTO']);
 export const doorStateSchema = z.enum(['OPEN', 'CLOSED']);
@@ -52,6 +52,7 @@ export function validateDeviceDesiredState(
   switch (deviceId) {
     case 'light1':
     case 'light2':
+    case 'light3':
       return lightDesiredStateSchema.parse(rawDesiredState);
     case 'fan1':
       return fanDesiredStateSchema.parse(rawDesiredState);
