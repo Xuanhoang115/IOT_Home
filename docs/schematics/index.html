@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sơ đồ nguyên lý ESP32 — Smart Home IoT 2026 (Lab 1)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: Inter, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .toolbar {
+      width: 100%;
+      max-width: 1440px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px 18px;
+    }
+    .toolbar h1 { margin: 0; font-size: 16px; font-weight: 800; }
+    .toolbar p { margin: 2px 0 0; font-size: 12px; color: #94a3b8; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #ffffff;
+    }
+    .btn-png { background: #7c3aed; }
+    .btn-png:hover { background: #6d28d9; }
+    .btn-pdf { background: #2563eb; }
+    .btn-pdf:hover { background: #1d4ed8; }
+    .sheet {
+      width: 100%;
+      max-width: 1440px;
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    }
+    .sheet svg { display: block; width: 100%; height: auto; }
+    @media print {
+      @page { size: A4 landscape; margin: 6mm; }
+      body { background: #ffffff; padding: 0; }
+      .toolbar { display: none; }
+      .sheet { box-shadow: none; border-radius: 0; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div>
+      <h1>Sơ đồ nguyên lý &amp; đấu nối ESP32 DevKit V1 — Smart Home IoT 2026</h1>
+      <p>Xuất trực tiếp file PNG độ phân giải 3200×2120px hoặc in PDF khổ A4 ngang để nộp Bài Lab 1 (Mục C.1).</p>
+    </div>
+    <div class="actions">
+      <button class="btn-png" onclick="downloadPng()">📥 Tải ảnh PNG (3200×2120 sắc nét)</button>
+      <button class="btn-pdf" onclick="window.print()">🖨️ Xuất file PDF (A4 ngang)</button>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <svg id="schematicSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1060" width="1600" height="1060" font-family="Segoe UI, Inter, Arial, sans-serif">
+      <defs>
+        <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="100%" stop-color="#f1f5f9"/>
+        </linearGradient>
+        <linearGradient id="espGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+        <filter id="cardShadow" x="-4%" y="-4%" width="108%" height="108%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/>
+        </filter>
+      </defs>
+
+      <rect x="0" y="0" width="1600" height="1060" fill="url(#bgGrad)"/>
+      <rect x="16" y="16" width="1568" height="1028" rx="14" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+
+      <rect x="28" y="28" width="1544" height="84" rx="10" fill="#0f172a"/>
+      <text x="52" y="64" fill="#ffffff" font-size="24" font-weight="800" letter-spacing="0.3">
+        SMART HOME IoT 2026 — SƠ ĐỒ NGUYÊN LÝ &amp; ĐẤU NỐI CHÂN GPIO (LAB 1)
+      </text>
+      <text x="52" y="92" fill="#94a3b8" font-size="14" font-weight="500">
+        MCU: ESP32 DevKit V1 (30 chân)  •  Đấu nối trực tiếp Point-to-Point (không dùng Breadboard)  •  3 nút gom Star-Bus (5V / 3.3V / GND Chung) + Cầu phân áp MQ-2
+      </text>
+
+      <g transform="translate(1060, 44)">
+        <rect x="0" y="0" width="490" height="52" rx="8" fill="#1e293b" stroke="#334155"/>
+        <line x1="16" y1="18" x2="46" y2="18" stroke="#ef4444" stroke-width="3.5"/>
+        <text x="54" y="22" fill="#f8fafc" font-size="12" font-weight="600">5V Ngoài</text>
+        <line x1="130" y1="18" x2="160" y2="18" stroke="#f59e0b" stroke-width="3.5"/>
+        <text x="168" y="22" fill="#f8fafc" font-size="12" font-weight="600">3.3V</text>
+        <line x1="216" y1="18" x2="246" y2="18" stroke="#475569" stroke-width="3.5"/>
+        <text x="254" y="22" fill="#f8fafc" font-size="12" font-weight="600">GND Chung</text>
+        <line x1="342" y1="18" x2="372" y2="18" stroke="#2563eb" stroke-width="3.5"/>
+        <text x="380" y="22" fill="#f8fafc" font-size="12" font-weight="600">GPIO / PWM</text>
+        <line x1="16" y1="38" x2="46" y2="38" stroke="#16a34a" stroke-width="3.5"/>
+        <text x="54" y="42" fill="#f8fafc" font-size="12" font-weight="600">I2C (SDA/SCL)</text>
+        <line x1="160" y1="38" x2="190" y2="38" stroke="#9333ea" stroke-width="3.5"/>
+        <text x="198" y="42" fill="#f8fafc" font-size="12" font-weight="600">ADC1 / Cảm biến</text>
+        <line x1="322" y1="38" x2="352" y2="38" stroke="#0891b2" stroke-width="3.5"/>
+        <text x="360" y="42" fill="#f8fafc" font-size="12" font-weight="600">Nút nhấn / MC-38</text>
+      </g>
+
+      <g filter="url(#cardShadow)">
+        <rect x="676" y="138" width="248" height="718" rx="16" fill="url(#espGrad)" stroke="#334155" stroke-width="2.5"/>
+        <rect x="720" y="162" width="160" height="122" rx="8" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="800" y="210" text-anchor="middle" fill="#0f172a" font-size="17" font-weight="800">ESP-WROOM-32</text>
+        <text x="800" y="232" text-anchor="middle" fill="#334155" font-size="12" font-weight="700">Wi-Fi 2.4GHz • Dual Core</text>
+        <text x="800" y="252" text-anchor="middle" fill="#475569" font-size="11">DevKit V1 CP2102 (30-Pin)</text>
+        <text x="800" y="272" text-anchor="middle" fill="#0f766e" font-size="11" font-weight="700">Logic GPIO: 3.3V MAX</text>
+        <rect x="762" y="820" width="76" height="36" rx="4" fill="#94a3b8" stroke="#475569" stroke-width="1.5"/>
+        <text x="800" y="843" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="800">MICRO USB</text>
+        <rect x="712" y="810" width="36" height="20" rx="4" fill="#334155"/>
+        <text x="730" y="824" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">EN</text>
+        <rect x="852" y="810" width="40" height="20" rx="4" fill="#334155"/>
+        <text x="872" y="824" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">BOOT</text>
+
+        <circle cx="676" cy="316" r="6" fill="#a855f7" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="320" fill="#f8fafc" font-size="12" font-weight="700">D34 (ADC1)</text>
+        <circle cx="676" cy="364" r="6" fill="#a855f7" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="368" fill="#f8fafc" font-size="12" font-weight="700">D35 (IN)</text>
+        <circle cx="676" cy="412" r="6" fill="#06b6d4" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="416" fill="#f8fafc" font-size="12" font-weight="700">D32</text>
+        <circle cx="676" cy="460" r="6" fill="#a855f7" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="464" fill="#f8fafc" font-size="12" font-weight="700">D33</text>
+        <circle cx="676" cy="516" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="520" fill="#f8fafc" font-size="12" font-weight="700">D25</text>
+        <circle cx="676" cy="558" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="562" fill="#f8fafc" font-size="12" font-weight="700">D26</text>
+        <circle cx="676" cy="616" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="620" fill="#f8fafc" font-size="12" font-weight="700">D27 (PWM)</text>
+        <circle cx="676" cy="686" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="690" fill="#f8fafc" font-size="12" font-weight="700">D14</text>
+        <circle cx="676" cy="756" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="760" fill="#f8fafc" font-size="12" font-weight="700">D13 (PWM)</text>
+        <circle cx="676" cy="798" r="6" fill="#64748b" stroke="#ffffff" stroke-width="2"/>
+        <text x="690" y="802" fill="#cbd5e1" font-size="12" font-weight="700">GND</text>
+
+        <circle cx="924" cy="216" r="6" fill="#f59e0b" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="220" text-anchor="end" fill="#fde68a" font-size="12" font-weight="700">3V3</text>
+        <circle cx="924" cy="256" r="6" fill="#64748b" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="260" text-anchor="end" fill="#cbd5e1" font-size="12" font-weight="700">GND</text>
+        <circle cx="924" cy="316" r="6" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="320" text-anchor="end" fill="#f8fafc" font-size="12" font-weight="700">D22 (SCL)</text>
+        <circle cx="924" cy="356" r="6" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="360" text-anchor="end" fill="#f8fafc" font-size="12" font-weight="700">D21 (SDA)</text>
+        <circle cx="924" cy="456" r="6" fill="#06b6d4" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="460" text-anchor="end" fill="#f8fafc" font-size="12" font-weight="700">D19</text>
+        <circle cx="924" cy="546" r="6" fill="#06b6d4" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="550" text-anchor="end" fill="#f8fafc" font-size="12" font-weight="700">D18</text>
+        <circle cx="924" cy="648" r="6" fill="#a855f7" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="652" text-anchor="end" fill="#f8fafc" font-size="12" font-weight="700">D4</text>
+        <circle cx="924" cy="756" r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="760" text-anchor="end" fill="#fca5a5" font-size="12" font-weight="700">VIN (5V)</text>
+        <circle cx="924" cy="798" r="6" fill="#64748b" stroke="#ffffff" stroke-width="2"/>
+        <text x="910" y="802" text-anchor="end" fill="#cbd5e1" font-size="12" font-weight="700">GND</text>
+      </g>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="138" width="548" height="190" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <rect x="36" y="138" width="548" height="32" rx="12" fill="#faf5ff"/>
+        <text x="52" y="159" fill="#6b21a8" font-size="13.5" font-weight="800">1. CẢM BIẾN KHÓI MQ-2 + CẦU PHÂN ÁP 10kΩ / 10kΩ (BẮT BUỘC AN TOÀN 3.3V)</text>
+        <rect x="52" y="184" width="136" height="126" rx="8" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+        <text x="120" y="210" text-anchor="middle" fill="#991b1b" font-size="14" font-weight="800">MQ-2</text>
+        <text x="120" y="228" text-anchor="middle" fill="#7f1d1d" font-size="11">Phòng bếp</text>
+        <text x="64" y="256" fill="#dc2626" font-size="11" font-weight="700">VCC: 5V Ngoài</text>
+        <text x="64" y="276" fill="#475569" font-size="11" font-weight="700">GND: GND Chung</text>
+        <text x="64" y="296" fill="#7c3aed" font-size="11" font-weight="800">AO (0V – 5V) ──▶</text>
+        <line x1="188" y1="292" x2="246" y2="292" stroke="#9333ea" stroke-width="3"/>
+        <rect x="246" y="279" width="94" height="26" rx="5" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="293" y="296" text-anchor="middle" fill="#92400e" font-size="12" font-weight="800">R1 = 10kΩ</text>
+        <line x1="340" y1="292" x2="430" y2="292" stroke="#9333ea" stroke-width="3"/>
+        <circle cx="430" cy="292" r="5" fill="#9333ea"/>
+        <line x1="430" y1="292" x2="430" y2="250" stroke="#9333ea" stroke-width="2.5"/>
+        <rect x="385" y="206" width="90" height="26" rx="5" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="430" y="223" text-anchor="middle" fill="#92400e" font-size="12" font-weight="800">R2 = 10kΩ</text>
+        <line x1="430" y1="232" x2="430" y2="250" stroke="#9333ea" stroke-width="2.5"/>
+        <line x1="430" y1="206" x2="430" y2="188" stroke="#475569" stroke-width="2.5"/>
+        <line x1="416" y1="188" x2="444" y2="188" stroke="#475569" stroke-width="3"/>
+        <text x="454" y="193" fill="#475569" font-size="11" font-weight="800">GND</text>
+        <rect x="206" y="184" width="166" height="62" rx="6" fill="#f8fafc" stroke="#cbd5e1"/>
+        <text x="216" y="203" fill="#0f172a" font-size="11" font-weight="700">V_GPIO34 = 0.5 × V_AO</text>
+        <text x="216" y="220" fill="#15803d" font-size="11" font-weight="800">Max 2.5V &lt; 3.3V (An toàn)</text>
+        <text x="216" y="237" fill="#64748b" font-size="10">Dùng ADC1 (không đụng Wi-Fi)</text>
+        <line x1="430" y1="292" x2="584" y2="292" stroke="#9333ea" stroke-width="3"/>
+        <text x="450" y="284" fill="#6b21a8" font-size="11" font-weight="800">Max 2.5V → GPIO 34</text>
+      </g>
+      <polyline points="584,292 622,292 622,316 670,316" fill="none" stroke="#9333ea" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="338" width="548" height="52" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="52" y="361" fill="#0f172a" font-size="13" font-weight="800">2. PIR HC-SR501 (Chuyển động P.Khách)</text>
+        <text x="52" y="379" fill="#64748b" font-size="11">VCC: <tspan fill="#dc2626" font-weight="700">5V Ngoài</tspan>  •  GND: GND Chung  •  OUT: Mức logic 3.3V chuẩn</text>
+        <text x="568" y="368" text-anchor="end" fill="#7c3aed" font-size="12" font-weight="800">OUT → D35</text>
+      </g>
+      <line x1="584" y1="364" x2="670" y2="364" stroke="#9333ea" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="398" width="548" height="46" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="52" y="419" fill="#0f172a" font-size="13" font-weight="800">3. Cảm biến từ cửa MC-38 (Reed Switch)</text>
+        <text x="52" y="436" fill="#64748b" font-size="11">1 dây → GPIO 32 (INPUT_PULLUP)  •  1 dây → GND Chung (Đóng cửa = LOW)</text>
+        <text x="568" y="425" text-anchor="end" fill="#0891b2" font-size="12" font-weight="800">SIG → D32</text>
+      </g>
+      <line x1="584" y1="412" x2="670" y2="412" stroke="#0891b2" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="452" width="548" height="46" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="52" y="473" fill="#0f172a" font-size="13" font-weight="800">4. Cảm biến lửa Flame Sensor (FE-01 Bếp)</text>
+        <text x="52" y="490" fill="#64748b" font-size="11">VCC: <tspan fill="#d97706" font-weight="700">3.3V</tspan>  •  GND: GND Chung  •  DO: LOW khi phát hiện ngọn lửa</text>
+        <text x="568" y="479" text-anchor="end" fill="#7c3aed" font-size="12" font-weight="800">DO → D33</text>
+      </g>
+      <polyline points="584,474 622,474 622,460 670,460" fill="none" stroke="#9333ea" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="506" width="548" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="52" y="527" fill="#0f172a" font-size="13" font-weight="800">5. LED 1 (light1 - P.Khách) &amp; LED 2 (light2 - P.Ngủ)</text>
+        <circle cx="64" cy="547" r="7" fill="#ef4444"/>
+        <text x="78" y="551" fill="#334155" font-size="11.5" font-weight="700">LED 1: D25 → [Trở 220Ω] → Anode (+) → Cathode (−) → GND</text>
+        <circle cx="64" cy="567" r="7" fill="#eab308"/>
+        <text x="78" y="571" fill="#334155" font-size="11.5" font-weight="700">LED 2: D26 → [Trở 220Ω] → Anode (+) → Cathode (−) → GND</text>
+        <text x="568" y="526" text-anchor="end" fill="#2563eb" font-size="11.5" font-weight="800">D25 / D26</text>
+      </g>
+      <line x1="584" y1="516" x2="670" y2="516" stroke="#2563eb" stroke-width="3"/>
+      <line x1="584" y1="558" x2="670" y2="558" stroke="#2563eb" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="586" width="548" height="72" rx="10" fill="#ffffff" stroke="#bfdbfe" stroke-width="1.5"/>
+        <text x="52" y="608" fill="#1e40af" font-size="13" font-weight="800">6. Quạt DC 5V (fan1) qua Module MOSFET + Diode 1N4007</text>
+        <text x="52" y="628" fill="#334155" font-size="11.5">• SIG/PWM: <tspan fill="#2563eb" font-weight="800">GPIO 27</tspan>  •  VIN+: <tspan fill="#dc2626" font-weight="700">5V Ngoài</tspan>  •  GND: <tspan font-weight="700">GND Chung</tspan></text>
+        <text x="52" y="646" fill="#b45309" font-size="11" font-weight="700">• Mắc Diode 1N4007 ngược chiều song song 2 cực Quạt để dập xung ngược</text>
+        <text x="568" y="622" text-anchor="end" fill="#2563eb" font-size="12" font-weight="800">SIG ← D27</text>
+      </g>
+      <line x1="584" y1="616" x2="670" y2="616" stroke="#2563eb" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="666" width="548" height="48" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="52" y="687" fill="#0f172a" font-size="13" font-weight="800">7. Còi Báo Động Active Buzzer (Module 3 chân)</text>
+        <text x="52" y="705" fill="#64748b" font-size="11">VCC: <tspan fill="#d97706" font-weight="700">3.3V</tspan>  •  GND: GND Chung  •  I/O: Kích kêu khi báo khói/lửa</text>
+        <text x="568" y="692" text-anchor="end" fill="#2563eb" font-size="12" font-weight="800">I/O ← D14</text>
+      </g>
+      <line x1="584" y1="686" x2="670" y2="686" stroke="#2563eb" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="36" y="722" width="548" height="84" rx="10" fill="#ffffff" stroke="#fecaca" stroke-width="1.5"/>
+        <text x="52" y="744" fill="#991b1b" font-size="13" font-weight="800">8. Cửa Chính Servo SG90 (door1) + Tụ Lọc 470µF–1000µF</text>
+        <text x="52" y="764" fill="#334155" font-size="11.5">• Dây Cam/Vàng (PWM): <tspan fill="#2563eb" font-weight="800">GPIO 13</tspan> (0° Đóng / 90° Mở)</text>
+        <text x="52" y="782" fill="#334155" font-size="11.5">• Dây Đỏ: <tspan fill="#dc2626" font-weight="800">5V Ngoài</tspan>  •  Dây Nâu: <tspan font-weight="800">GND Chung</tspan> (cấm nối thẳng vào 3V3 ESP32)</text>
+        <text x="52" y="798" fill="#b45309" font-size="11" font-weight="700">• Nối tụ hóa 470µF–1000µF (≥10V) sát chân VCC–GND Servo để chống sụt áp reset</text>
+        <text x="568" y="760" text-anchor="end" fill="#2563eb" font-size="12" font-weight="800">PWM ← D13</text>
+      </g>
+      <line x1="584" y1="756" x2="670" y2="756" stroke="#2563eb" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="1016" y="138" width="548" height="248" rx="12" fill="#ffffff" stroke="#bbf7d0" stroke-width="1.5"/>
+        <rect x="1016" y="138" width="548" height="32" rx="12" fill="#f0fdf4"/>
+        <text x="1032" y="159" fill="#166534" font-size="13.5" font-weight="800">9. MÀN HÌNH OLED 0.96" I2C (SSD1306 • GM009605v4.3)</text>
+        <text x="1034" y="220" fill="#d97706" font-size="12" font-weight="800">◀── VCC (3.3V)</text>
+        <text x="1034" y="260" fill="#475569" font-size="12" font-weight="800">◀── GND (Chung)</text>
+        <text x="1034" y="320" fill="#16a34a" font-size="12" font-weight="800">◀── SCL / SCK (D22)</text>
+        <text x="1034" y="360" fill="#16a34a" font-size="12" font-weight="800">◀── SDA (D21)</text>
+        <rect x="1220" y="192" width="320" height="172" rx="10" fill="#0f172a" stroke="#334155" stroke-width="3"/>
+        <text x="1238" y="218" fill="#38bdf8" font-family="Consolas, monospace" font-size="13" font-weight="700">WF:OK MQ:OK [MANU]</text>
+        <text x="1238" y="252" fill="#f8fafc" font-family="Consolas, monospace" font-size="15" font-weight="700">T: 29.4C   H: 64%</text>
+        <text x="1238" y="286" fill="#4ade80" font-family="Consolas, monospace" font-size="14" font-weight="700">GAS: 420   PIR: KO</text>
+        <text x="1238" y="318" fill="#facc15" font-family="Consolas, monospace" font-size="13" font-weight="700">D1:ON  D2:OFF F:OFF</text>
+        <text x="1238" y="346" fill="#e2e8f0" font-family="Consolas, monospace" font-size="13" font-weight="700">CUA: DONG (0 DEG)</text>
+      </g>
+      <line x1="930" y1="216" x2="1016" y2="216" stroke="#f59e0b" stroke-width="3"/>
+      <line x1="930" y1="256" x2="1016" y2="256" stroke="#475569" stroke-width="3"/>
+      <line x1="930" y1="316" x2="1016" y2="316" stroke="#16a34a" stroke-width="3"/>
+      <line x1="930" y1="356" x2="1016" y2="356" stroke="#16a34a" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="1016" y="408" width="548" height="82" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="1034" y="432" fill="#0f172a" font-size="13" font-weight="800">10. Nút nhấn 2 — BTN_LIGHT (GPIO 19 • INPUT_PULLUP)</text>
+        <text x="1034" y="454" fill="#334155" font-size="11.5">• Nhấn ngắn: Bật/Tắt Đèn P.Khách (light1) hoặc Tắt còi báo động tại chỗ</text>
+        <text x="1034" y="474" fill="#0891b2" font-size="11.5" font-weight="700">• Nhấn giữ 1.8 giây: Chuyển MANUAL ↔ AUTO  •  1 chân D19, 1 chân GND</text>
+      </g>
+      <line x1="930" y1="456" x2="1016" y2="456" stroke="#0891b2" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="1016" y="504" width="548" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="1034" y="528" fill="#0f172a" font-size="13" font-weight="800">11. Nút nhấn 1 — BTN_DOOR (GPIO 18 • INPUT_PULLUP)</text>
+        <text x="1034" y="549" fill="#334155" font-size="11.5">• Nhấn tay đóng/mở cửa Servo SG90 (0° ↔ 90°) tại mô hình (chống rung 50ms)</text>
+        <text x="1034" y="566" fill="#64748b" font-size="11">• 1 chân nối GPIO 18, 1 chân nối GND Chung (không cần trở ngoài)</text>
+      </g>
+      <line x1="930" y1="546" x2="1016" y2="546" stroke="#0891b2" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="1016" y="590" width="548" height="106" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="1034" y="614" fill="#0f172a" font-size="13" font-weight="800">12. Cảm biến Nhiệt độ &amp; Độ ẩm DHT22 (Phòng khách)</text>
+        <text x="1034" y="636" fill="#334155" font-size="11.5">• Chân 1 (VCC): <tspan fill="#d97706" font-weight="800">3.3V</tspan>   •   Chân 2 (DATA): <tspan fill="#7c3aed" font-weight="800">GPIO 4</tspan>   •   Chân 4 (GND): GND Chung</text>
+        <text x="1034" y="656" fill="#64748b" font-size="11.5">• Nếu dùng DHT22 rời 4 chân: mắc thêm điện trở kéo lên <tspan fill="#b45309" font-weight="700">10kΩ</tspan> giữa DATA và 3.3V</text>
+        <text x="1034" y="676" fill="#15803d" font-size="11" font-weight="700">• Tự động bật Quạt (AUTO) khi T ≥ 31.0°C và tắt khi T ≤ 29.5°C (Hysteresis)</text>
+      </g>
+      <line x1="930" y1="648" x2="1016" y2="648" stroke="#9333ea" stroke-width="3"/>
+
+      <g filter="url(#cardShadow)">
+        <rect x="1016" y="710" width="548" height="146" rx="12" fill="#fff1f2" stroke="#fda4af" stroke-width="2"/>
+        <text x="1034" y="734" fill="#9f1239" font-size="13.5" font-weight="800">13. ĐẤU NỐI TRỰC TIẾP (KHÔNG BREADBOARD) — 3 NÚT GOM STAR-BUS</text>
+        <text x="1034" y="758" fill="#881337" font-size="12" font-weight="700">• Nút gom (+) 5V_EXT: Adapter 5V-2A → chia thẳng Servo (+ Tụ 1000µF), MOSFET, MQ-2, PIR</text>
+        <text x="1034" y="780" fill="#1e293b" font-size="12" font-weight="700">• Nút gom (−) GND Chung (Star GND): gom TẤT CẢ dây GND vào 1 điểm (Domino/hàn) → đấu GND ESP32</text>
+        <text x="1034" y="802" fill="#b45309" font-size="11.5" font-weight="700">• Nút gom 3.3V: từ chân 3V3 ESP32 → chia thẳng OLED, DHT22, Flame, Active Buzzer</text>
+        <text x="1034" y="822" fill="#475569" font-size="11.5">• Dây tín hiệu nối thẳng 1–1 đúng chân GPIO; bọc gen co nhiệt kỹ mối trở 220Ω &amp; cầu phân áp 10kΩ/10kΩ</text>
+        <text x="1034" y="842" fill="#0f766e" font-size="11.5" font-weight="700">• Tuyệt đối KHÔNG nối thẳng AO của MQ-2 (5V) vào D34 &amp; tránh chân GPIO 6–12</text>
+      </g>
+      <line x1="930" y1="756" x2="1016" y2="756" stroke="#ef4444" stroke-width="3.5"/>
+      <line x1="930" y1="798" x2="1016" y2="798" stroke="#475569" stroke-width="3.5"/>
+
+      <rect x="36" y="878" width="1528" height="148" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+      <rect x="36" y="878" width="1528" height="32" rx="12" fill="#f1f5f9"/>
+      <text x="54" y="899" fill="#0f172a" font-size="13" font-weight="800">
+        BẢNG TRA NHANH 14 CHÂN GPIO CHÍNH THỨC (ESP32 DEVKIT V1 30 CHÂN — ĐỒNG BỘ 100% VỚI FIRMWARE &amp; WOKWI v2.0.0)
+      </text>
+      <g font-size="12" fill="#1e293b">
+        <text x="54" y="932"><tspan font-weight="800" fill="#2563eb">GPIO 25</tspan> — LED 1 (light1, 220Ω)</text>
+        <text x="54" y="956"><tspan font-weight="800" fill="#2563eb">GPIO 26</tspan> — LED 2 (light2, 220Ω)</text>
+        <text x="54" y="980"><tspan font-weight="800" fill="#2563eb">GPIO 27</tspan> — MOSFET Quạt 5V (fan1)</text>
+        <text x="54" y="1004"><tspan font-weight="800" fill="#2563eb">GPIO 13</tspan> — Servo SG90 Cửa (door1)</text>
+        <text x="430" y="932"><tspan font-weight="800" fill="#2563eb">GPIO 14</tspan> — Active Buzzer (3.3V)</text>
+        <text x="430" y="956"><tspan font-weight="800" fill="#7c3aed">GPIO 4 </tspan> — Cảm biến DHT22 DATA</text>
+        <text x="430" y="980"><tspan font-weight="800" fill="#7c3aed">GPIO 35</tspan> — Cảm biến PIR HC-SR501</text>
+        <text x="430" y="1004"><tspan font-weight="800" fill="#7c3aed">GPIO 34</tspan> — MQ-2 AO (10kΩ/10kΩ)</text>
+        <text x="820" y="932"><tspan font-weight="800" fill="#0891b2">GPIO 18</tspan> — Nút nhấn Cửa (BTN_DOOR)</text>
+        <text x="820" y="956"><tspan font-weight="800" fill="#0891b2">GPIO 19</tspan> — Nút Đèn/Tắt còi/Mode</text>
+        <text x="820" y="980"><tspan font-weight="800" fill="#0891b2">GPIO 32</tspan> — Cảm biến từ cửa MC-38</text>
+        <text x="820" y="1004"><tspan font-weight="800" fill="#7c3aed">GPIO 33</tspan> — Cảm biến lửa Flame DO</text>
+        <text x="1205" y="932"><tspan font-weight="800" fill="#16a34a">GPIO 21</tspan> — OLED 0.96" I2C SDA</text>
+        <text x="1205" y="956"><tspan font-weight="800" fill="#16a34a">GPIO 22</tspan> — OLED 0.96" I2C SCL/SCK</text>
+        <text x="1205" y="980"><tspan font-weight="800" fill="#dc2626">5V_EXT </tspan> — Adapter 5V-2A (Tụ 1000µF)</text>
+        <text x="1205" y="1004"><tspan font-weight="800" fill="#475569">GND    </tspan> — Nối chung 1 điểm (Star GND)</text>
+      </g>
+    </svg>
+  </div>
+
+  <script>
+    function downloadPng() {
+      const svgEl = document.getElementById('schematicSvg');
+      const xml = new XMLSerializer().serializeToString(svgEl);
+      const encoded = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      const img = new Image();
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        canvas.width = 3200;
+        canvas.height = 2120;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const link = document.createElement('a');
+        link.download = 'ESP32_SmartHome_Schematic_Lab1.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      img.src = encoded;
+    }
+  </script>
+</body>
+</html>

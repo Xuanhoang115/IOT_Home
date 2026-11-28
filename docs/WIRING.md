@@ -1,5 +1,10 @@
 # SƠ ĐỒ ĐẤU NỐI CHÂN GPIO (PINOUT) – ESP32 DEVKIT V1 CP2102 (30 CHÂN)
 
+> **Bản vẽ sơ đồ nguyên lý sắc nét (Vector SVG / xuất PNG & PDF nộp Lab 1):**
+> - File SVG gốc: [docs/schematics/esp32_smarthome_schematic.svg](schematics/esp32_smarthome_schematic.svg)
+> - Trang xuất PNG (3200×2120) / PDF A4 ngang: mở [docs/schematics/index.html](schematics/index.html) bằng trình duyệt.
+> - Mô phỏng Wokwi tương tác: [firmware/wokwi/diagram.json](../firmware/wokwi/diagram.json)
+
 ## 1. Nguyên Tắc Chọn Chân GPIO Trên ESP32 30 Chân
 
 Trước khi đấu dây, nhóm bắt buộc tuân thủ các quy tắc phần cứng của dòng chip **ESP32-WROOM-32 (DevKit V1 30 chân)**:
@@ -65,3 +70,17 @@ Sử dụng **2 điện trở `10kΩ`** có sẵn trong danh mục BOM:
    └── (-) GND_COMMON ──> Nối chung GND của ESP32 + GND Servo + GND MOSFET + GND Cảm biến
 ```
 > **Cảnh báo bắt buộc**: Nếu không nối chung `GND` giữa nguồn `5V Ngoài` và chân `GND` của ESP32, xung PWM điều khiển Servo SG90 và tín hiệu kích MOSFET sẽ bị trôi áp (floating), khiến Servo quay loạn và MOSFET không hoạt động.
+
+---
+
+## 5. Phương Án Thi Công Nối Thẳng Trực Tiếp (Không Dùng Breadboard — Star-Bus)
+
+Trên mô hình nhà thật, nhóm đấu dây trực tiếp **Point-to-Point** kết hợp **3 nút gom nguồn/mass chung (Domino / kẹp nối / mối hàn bọc gen co nhiệt)** thay cho breadboard để giảm tiếp xúc lỏng và gọn gàng hơn:
+
+1. **Nút gom `GND Chung` (Star Ground — 1 điểm duy nhất):** Gom toàn bộ dây âm (`GND`) của Adapter `5V-2A`, ESP32 (`GND`), OLED, DHT22, PIR, MQ-2, nhánh `R2 (10kΩ)` của cầu phân áp, Flame, MC-38, 2 LED, MOSFET Quạt, Buzzer, Servo SG90 và 2 nút nhấn vào cùng 1 điểm rồi đấu chắc về chân `GND` của ESP32.
+2. **Nút gom `5V Ngoài` (`5V_EXT`):** Lấy từ cực `(+)` Adapter `5V-2A` chia trực tiếp tới Servo SG90 (kẹp sát tụ `470–1000µF`), MOSFET `VIN+`, MQ-2 `VCC` và PIR `VCC`.
+3. **Nút gom `3.3V`:** Lấy từ chân `3V3` của ESP32 chia trực tiếp tới OLED `VCC`, DHT22 `VCC`, Flame `VCC` và Active Buzzer `VCC`.
+4. **Dây tín hiệu đấu thẳng 1–1 đúng chân GPIO** (`D25 → LED1`, `D26 → LED2`, `D27 → MOSFET`, `D13 → Servo`, `D14 → Buzzer`, `D4 → DHT22`, `D35 → PIR`, `D32 → MC-38`, `D33 → Flame`, `D18/D19 → Nút nhấn`, `D21/D22 → OLED`) **với 3 lưu ý bảo vệ bắt buộc đấu trực tiếp trên dây (in-line, bọc gen co nhiệt cách điện):**
+   - **Cầu phân áp MQ-2 (`D34`):** Không nối thẳng `AO (5V)` vào `D34`; đấu chữ **T** trực tiếp trên dây: `AO → [10kΩ] → mối giữa vào D34`, từ mối giữa đó mắc `[10kΩ] → nút GND Chung`.
+   - **LED rời (`D25`, `D26`):** Nối nối tiếp điện trở `220Ω` trên dây trước chân Anode (`+`) mỗi LED (nếu dùng module LED có sẵn trở thì nối thẳng).
+   - **Quạt DC 5V (`D27`):** Hàn/kẹp Diode `1N4007` ngược chiều (vạch bạc về cực `+5V`) trực tiếp song song 2 cực quạt.
