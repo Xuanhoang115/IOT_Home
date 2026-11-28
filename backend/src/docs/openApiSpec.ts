@@ -22,6 +22,260 @@ export const openApiSpec = {
           'Nhập Firebase ID Token (hoặc `dev-token:uid_student_01` khi chạy chế độ In-Memory local).',
       },
     },
+    schemas: {
+      ApiErrorResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: false },
+          error: {
+            type: 'object',
+            properties: {
+              code: { type: 'string', example: 'UNAUTHORIZED' },
+              message: { type: 'string', example: 'Thiếu hoặc sai Bearer Token' },
+            },
+          },
+        },
+      },
+      Esp32Status: {
+        type: 'object',
+        properties: {
+          online: { type: 'boolean', example: true },
+          lastSeen: { type: 'integer', example: 1795848968677 },
+          rssi: { type: 'integer', example: -54 },
+          firmwareVersion: { type: 'string', example: '2.0.0' },
+          reason: { type: 'string', example: 'heartbeat' },
+        },
+      },
+      HealthData: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'ok' },
+          homeId: { type: 'string', example: 'home1' },
+          storageMode: { type: 'string', enum: ['firebase-admin', 'in-memory'], example: 'firebase-admin' },
+          mqttConnected: { type: 'boolean', example: true },
+          esp32Status: { $ref: '#/components/schemas/Esp32Status' },
+          systemMode: { type: 'string', enum: ['MANUAL', 'AUTO'], example: 'MANUAL' },
+          timestamp: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      DesiredState: {
+        type: 'object',
+        properties: {
+          power: { type: 'string', enum: ['ON', 'OFF'], example: 'ON' },
+          mode: { type: 'string', enum: ['MANUAL', 'AUTO'], example: 'MANUAL' },
+          doorState: { type: 'string', enum: ['OPEN', 'CLOSED'], example: 'OPEN' },
+          targetAngle: { type: 'integer', minimum: 0, maximum: 180, example: 90 },
+        },
+      },
+      ReportedState: {
+        type: 'object',
+        properties: {
+          power: { type: 'string', enum: ['ON', 'OFF'], example: 'ON' },
+          mode: { type: 'string', enum: ['MANUAL', 'AUTO'], example: 'MANUAL' },
+          doorState: { type: 'string', enum: ['OPEN', 'CLOSED'], example: 'CLOSED' },
+          currentAngle: { type: 'integer', example: 0 },
+          positionVerified: { type: 'boolean', example: false },
+        },
+      },
+      Device: {
+        type: 'object',
+        required: ['id', 'name', 'type', 'roomId', 'desiredState', 'reportedState', 'lastCommandStatus', 'lastUpdated'],
+        properties: {
+          id: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'], example: 'light1' },
+          name: { type: 'string', example: 'Đèn Phòng Khách' },
+          type: { type: 'string', enum: ['light', 'fan', 'door'], example: 'light' },
+          roomId: { type: 'string', enum: ['living_room', 'bedroom', 'kitchen'], example: 'living_room' },
+          desiredState: { $ref: '#/components/schemas/DesiredState' },
+          reportedState: { $ref: '#/components/schemas/ReportedState' },
+          lastCommandStatus: { type: 'string', enum: ['PENDING', 'ACKED', 'TIMEOUT', 'FAILED'], example: 'ACKED' },
+          lastRequestId: { type: 'string', example: 'req_1795848968677_abc' },
+          lastUpdated: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      RoomWithDevices: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', enum: ['living_room', 'bedroom', 'kitchen'], example: 'living_room' },
+          name: { type: 'string', example: 'Phòng khách' },
+          icon: { type: 'string', example: 'sofa' },
+          deviceIds: {
+            type: 'array',
+            items: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+            example: ['light1', 'fan1', 'door1'],
+          },
+          devices: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/Device' },
+          },
+        },
+      },
+      AutoConfig: {
+        type: 'object',
+        properties: {
+          tempThresholdHigh: { type: 'number', example: 31.0 },
+          tempThresholdLow: { type: 'number', example: 29.5 },
+          smokeThresholdAdc: { type: 'integer', example: 2200 },
+          motionAutoLight: { type: 'boolean', example: true },
+        },
+      },
+      Home: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', example: 'Nhà Thông Minh IoT 2026' },
+          systemMode: { type: 'string', enum: ['MANUAL', 'AUTO'], example: 'MANUAL' },
+          autoConfig: { $ref: '#/components/schemas/AutoConfig' },
+          esp32Status: { $ref: '#/components/schemas/Esp32Status' },
+        },
+      },
+      LatestSensors: {
+        type: 'object',
+        properties: {
+          temperature: {
+            type: 'object',
+            properties: {
+              value: { type: 'number', example: 29.4 },
+              unit: { type: 'string', example: 'C' },
+              roomId: { type: 'string', example: 'living_room' },
+              updatedAt: { type: 'integer', example: 1795848968677 },
+            },
+          },
+          humidity: {
+            type: 'object',
+            properties: {
+              value: { type: 'number', example: 64 },
+              unit: { type: 'string', example: '%' },
+              roomId: { type: 'string', example: 'living_room' },
+              updatedAt: { type: 'integer', example: 1795848968677 },
+            },
+          },
+          motion: {
+            type: 'object',
+            properties: {
+              motionDetected: { type: 'boolean', example: false },
+              roomId: { type: 'string', example: 'living_room' },
+              updatedAt: { type: 'integer', example: 1795848968677 },
+            },
+          },
+          smoke: {
+            type: 'object',
+            properties: {
+              rawAdc: { type: 'integer', example: 420 },
+              smokeLevelPercent: { type: 'number', example: 10 },
+              abnormal: { type: 'boolean', example: false },
+              roomId: { type: 'string', example: 'kitchen' },
+              updatedAt: { type: 'integer', example: 1795848968677 },
+            },
+          },
+        },
+      },
+      SensorReading: {
+        type: 'object',
+        properties: {
+          temperature: { type: 'number', example: 29.4 },
+          humidity: { type: 'number', example: 64 },
+          smokeRawAdc: { type: 'integer', example: 420 },
+          motionDetected: { type: 'boolean', example: false },
+          timestamp: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      Alert: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'alert_1795848968677' },
+          type: { type: 'string', enum: ['SMOKE_DETECTED', 'MOTION_DETECTED', 'SENSOR_ERROR', 'DEVICE_OFFLINE'] },
+          severity: { type: 'string', enum: ['INFO', 'WARNING', 'CRITICAL'], example: 'CRITICAL' },
+          roomId: { type: 'string', enum: ['living_room', 'bedroom', 'kitchen'], example: 'kitchen' },
+          deviceId: { type: 'string', example: 'smoke1' },
+          message: { type: 'string', example: 'Phát hiện khói vượt ngưỡng an toàn tại Phòng bếp!' },
+          acknowledged: { type: 'boolean', example: false },
+          buzzerTriggered: { type: 'boolean', example: true },
+          autoFanTriggered: { type: 'boolean', example: true },
+          timestamp: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      ActivityLog: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'log_1795848968677' },
+          requestId: { type: 'string', example: 'req_1795848968677_abc' },
+          deviceId: { type: 'string', example: 'light1' },
+          action: { type: 'string', example: 'Bật Đèn Phòng Khách' },
+          source: { type: 'string', enum: ['REMOTE_COMMAND', 'PHYSICAL_BUTTON', 'AUTO_RULE', 'BOOT_SYNC'] },
+          actorUid: { type: 'string', example: 'uid_student_01' },
+          details: { type: 'string', example: 'power=ON' },
+          timestamp: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      CommandRecord: {
+        type: 'object',
+        properties: {
+          requestId: { type: 'string', example: 'req_1795848968677_abc' },
+          deviceId: { type: 'string', enum: ['light1', 'light2', 'fan1', 'door1'] },
+          desiredState: { $ref: '#/components/schemas/DesiredState' },
+          status: { type: 'string', enum: ['PENDING', 'ACKED', 'TIMEOUT', 'FAILED'] },
+          requestedBy: { type: 'string', example: 'uid_student_01' },
+          createdAt: { type: 'integer', example: 1795848968677 },
+          ackedAt: { type: 'integer', example: 1795848969000 },
+          errorReason: { type: 'string', example: 'ESP32 không phản hồi sau 8 giây' },
+        },
+      },
+      DeviceCommandRequest: {
+        type: 'object',
+        required: ['desiredState'],
+        properties: {
+          desiredState: { $ref: '#/components/schemas/DesiredState' },
+        },
+      },
+      SystemModeUpdateRequest: {
+        type: 'object',
+        required: ['systemMode'],
+        properties: {
+          systemMode: { type: 'string', enum: ['MANUAL', 'AUTO'], example: 'AUTO' },
+          autoConfig: { $ref: '#/components/schemas/AutoConfig' },
+        },
+      },
+      NotificationTokenRequest: {
+        type: 'object',
+        required: ['token', 'platform'],
+        properties: {
+          token: { type: 'string', example: 'fcm_device_token_string...' },
+          platform: { type: 'string', enum: ['android', 'ios', 'web'], example: 'android' },
+          deviceKey: { type: 'string', example: 'android_device_01' },
+        },
+      },
+      NotificationToken: {
+        type: 'object',
+        properties: {
+          token: { type: 'string', example: 'fcm_device_token_string...' },
+          platform: { type: 'string', enum: ['android', 'ios', 'web'], example: 'android' },
+          deviceKey: { type: 'string', example: 'android_device_01' },
+          updatedAt: { type: 'integer', example: 1795848968677 },
+        },
+      },
+      SnapshotData: {
+        type: 'object',
+        properties: {
+          health: { $ref: '#/components/schemas/HealthData' },
+          rooms: { type: 'array', items: { $ref: '#/components/schemas/RoomWithDevices' } },
+          devices: { type: 'array', items: { $ref: '#/components/schemas/Device' } },
+          sensors: {
+            type: 'object',
+            properties: {
+              latest: { $ref: '#/components/schemas/LatestSensors' },
+              recentReadings: { type: 'array', items: { $ref: '#/components/schemas/SensorReading' } },
+            },
+          },
+          alerts: { type: 'array', items: { $ref: '#/components/schemas/Alert' } },
+          history: {
+            type: 'object',
+            properties: {
+              activityLogs: { type: 'array', items: { $ref: '#/components/schemas/ActivityLog' } },
+              commands: { type: 'array', items: { $ref: '#/components/schemas/CommandRecord' } },
+            },
+          },
+        },
+      },
+    },
   },
   tags: [
     { name: 'System & Health', description: 'Kiểm tra trạng thái máy chủ, MQTT và tổng hợp dữ liệu' },
@@ -37,7 +291,20 @@ export const openApiSpec = {
         summary: 'Kiểm tra trạng thái Server, MQTT & ESP32',
         description: 'Endpoint công khai trả về trạng thái kết nối EMQX MQTT, Firebase và ESP32 Online/Offline.',
         responses: {
-          '200': { description: 'Trạng thái hệ thống hiện tại' },
+          '200': {
+            description: 'Trạng thái hệ thống hiện tại',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/HealthData' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -47,8 +314,28 @@ export const openApiSpec = {
         summary: 'Lấy toàn bộ dữ liệu tổng hợp (1-Request Snapshot)',
         security: [{ BearerAuth: [] }],
         responses: {
-          '200': { description: 'Trả về đầy đủ health, rooms, devices, sensors, alerts và history' },
-          '401': { description: 'Thiếu hoặc sai Bearer Token' },
+          '200': {
+            description: 'Trả về đầy đủ health, rooms, devices, sensors, alerts và history',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/SnapshotData' },
+                  },
+                },
+              },
+            },
+          },
+          '401': {
+            description: 'Thiếu hoặc sai Bearer Token',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+              },
+            },
+          },
         },
       },
     },
@@ -58,7 +345,23 @@ export const openApiSpec = {
         summary: 'Lấy danh sách các phòng kèm thiết bị',
         security: [{ BearerAuth: [] }],
         responses: {
-          '200': { description: 'Danh sách phòng (Phòng khách, Phòng ngủ, Phòng bếp)' },
+          '200': {
+            description: 'Danh sách phòng (Phòng khách, Phòng ngủ, Phòng bếp)',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/RoomWithDevices' },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -77,7 +380,23 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Danh sách thiết bị và trạng thái reportedState mới nhất' },
+          '200': {
+            description: 'Danh sách thiết bị và trạng thái reportedState mới nhất',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/Device' },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -95,8 +414,28 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Thông tin chi tiết thiết bị' },
-          '404': { description: 'Không tìm thấy thiết bị' },
+          '200': {
+            description: 'Thông tin chi tiết thiết bị',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/Device' },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Không tìm thấy thiết bị',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+              },
+            },
+          },
         },
       },
     },
@@ -117,16 +456,7 @@ export const openApiSpec = {
           required: true,
           content: {
             'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  desiredState: {
-                    type: 'object',
-                    example: { power: 'ON' },
-                  },
-                },
-                required: ['desiredState'],
-              },
+              schema: { $ref: '#/components/schemas/DeviceCommandRequest' },
               examples: {
                 turnOnLight: {
                   summary: 'Bật đèn (light1 / light2)',
@@ -145,8 +475,36 @@ export const openApiSpec = {
           },
         },
         responses: {
-          '202': { description: 'Đã gửi lệnh MQTT và chờ xác nhận ACK từ ESP32' },
-          '400': { description: 'Payload không hợp lệ' },
+          '202': {
+            description: 'Đã gửi lệnh MQTT và chờ xác nhận ACK từ ESP32',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        requestId: { type: 'string' },
+                        status: { type: 'string', enum: ['PENDING', 'ACKED', 'TIMEOUT', 'FAILED'] },
+                        device: { $ref: '#/components/schemas/Device' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Payload không hợp lệ',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+              },
+            },
+          },
         },
       },
     },
@@ -159,27 +517,25 @@ export const openApiSpec = {
           required: true,
           content: {
             'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  systemMode: { type: 'string', enum: ['MANUAL', 'AUTO'] },
-                  autoConfig: {
-                    type: 'object',
-                    properties: {
-                      tempThresholdHigh: { type: 'number', example: 31.0 },
-                      tempThresholdLow: { type: 'number', example: 29.5 },
-                      smokeThresholdAdc: { type: 'integer', example: 2200 },
-                      motionAutoLight: { type: 'boolean', example: true },
-                    },
-                  },
-                },
-                required: ['systemMode'],
-              },
+              schema: { $ref: '#/components/schemas/SystemModeUpdateRequest' },
             },
           },
         },
         responses: {
-          '200': { description: 'Đã cập nhật chế độ hệ thống thành công' },
+          '200': {
+            description: 'Đã cập nhật chế độ hệ thống thành công',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/Home' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -189,7 +545,29 @@ export const openApiSpec = {
         summary: 'Lấy thông số cảm biến mới nhất và lịch sử gần đây',
         security: [{ BearerAuth: [] }],
         responses: {
-          '200': { description: 'Giá trị DHT22 (nhiệt độ, độ ẩm), PIR và MQ-2 mới nhất' },
+          '200': {
+            description: 'Giá trị DHT22 (nhiệt độ, độ ẩm), PIR và MQ-2 mới nhất',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        latest: { $ref: '#/components/schemas/LatestSensors' },
+                        recentReadings: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/SensorReading' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -207,7 +585,32 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Danh sách nhật ký và lệnh điều khiển' },
+          '200': {
+            description: 'Danh sách nhật ký và lệnh điều khiển',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        activityLogs: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/ActivityLog' },
+                        },
+                        commands: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/CommandRecord' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -225,7 +628,23 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Danh sách cảnh báo sắp xếp mới nhất trước' },
+          '200': {
+            description: 'Danh sách cảnh báo sắp xếp mới nhất trước',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/Alert' },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -244,8 +663,28 @@ export const openApiSpec = {
           },
         ],
         responses: {
-          '200': { description: 'Đã cập nhật acknowledged = true trên Firebase' },
-          '404': { description: 'Không tìm thấy cảnh báo' },
+          '200': {
+            description: 'Đã cập nhật acknowledged = true trên Firebase',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/Alert' },
+                  },
+                },
+              },
+            },
+          },
+          '404': {
+            description: 'Không tìm thấy cảnh báo',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+              },
+            },
+          },
         },
       },
     },
@@ -258,20 +697,25 @@ export const openApiSpec = {
           required: true,
           content: {
             'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  token: { type: 'string', example: 'fcm_device_token_string...' },
-                  platform: { type: 'string', enum: ['android', 'ios', 'web'], example: 'android' },
-                  deviceKey: { type: 'string', example: 'android_device_01' },
-                },
-                required: ['token', 'platform'],
-              },
+              schema: { $ref: '#/components/schemas/NotificationTokenRequest' },
             },
           },
         },
         responses: {
-          '201': { description: 'Đã lưu FCM token vào Firebase thành công' },
+          '201': {
+            description: 'Đã lưu FCM token vào Firebase thành công',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: { $ref: '#/components/schemas/NotificationToken' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -500,6 +944,37 @@ export function renderSwaggerHtml(): string {
     .swagger-ui .btn.execute { background: #2563eb; border-color: #2563eb; color: #ffffff; }
     .swagger-ui .btn.execute:hover { background: #1d4ed8; }
     .swagger-ui .btn.cancel { border-color: #ef4444; color: #fca5a5; }
+    /* Native Dark Theme cho khu vực Schemas (Models) */
+    .swagger-ui section.models {
+      background: #171b24;
+      border: 1px solid #262c3a;
+      border-radius: 12px;
+      margin: 28px 0 40px;
+    }
+    .swagger-ui section.models h4 {
+      color: #ffffff !important;
+      border-bottom: 1px solid #262c3a;
+      padding: 12px 18px;
+    }
+    .swagger-ui section.models h4 svg { fill: #cbd5e1 !important; }
+    .swagger-ui section.models .model-container {
+      background: #0f1218;
+      border: 1px solid #262c3a;
+      border-radius: 8px;
+      margin: 10px 16px;
+      padding: 10px 14px;
+    }
+    .swagger-ui section.models .model-container:hover {
+      background: #131823;
+    }
+    .swagger-ui .model-box {
+      background: transparent !important;
+    }
+    .swagger-ui .prop-type { color: #60a5fa !important; }
+    .swagger-ui .prop-format { color: #94a3b8 !important; }
+    .swagger-ui .brace-open, .swagger-ui .brace-close,
+    .swagger-ui .model .property.primitive { color: #94a3b8 !important; }
+    .swagger-ui table.model tr.property-row td { color: #e2e8f0 !important; }
     @media (max-width: 640px) {
       .swagger-ui .wrapper { padding: 0 12px; }
       .swagger-ui .scheme-container .schemes { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -517,6 +992,8 @@ export function renderSwaggerHtml(): string {
         dom_id: '#swagger-ui',
         deepLinking: true,
         filter: true,
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 2,
         persistAuthorization: true,
         docExpansion: 'list',
         presets: [SwaggerUIBundle.presets.apis],
