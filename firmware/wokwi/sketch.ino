@@ -20,16 +20,19 @@
 #include <sys/time.h>
 
 // ---------------------------------------------------------------------------
-// 1. CAU HINH WIFI & MQTT BROKER (Wokwi Web)
+// 1. CAU HINH WIFI & MQTT BROKER (Wokwi Web / VS Code Wokwi)
+// Copy secrets.example.h -> secrets.h (khong commit len Git) hoac dien truc tiep tren Wokwi Web
 // ---------------------------------------------------------------------------
-#define WIFI_SSID           "Wokwi-GUEST"
-#define WIFI_PASSWORD       ""
-
-// Thong tin EMQX Cloud Serverless TLS :8883 (thay doi tai day neu dung Broker khac)
-#define MQTT_BROKER_HOST    "u1a4013a.ala.eu-central-1.emqxsl.com"
-#define MQTT_BROKER_PORT    8883
-#define MQTT_USERNAME       "smarthome_esp32"
-#define MQTT_PASSWORD       "admin123"
+#if __has_include("secrets.h")
+  #include "secrets.h"
+#else
+  #define WIFI_SSID           "Wokwi-GUEST"
+  #define WIFI_PASSWORD       ""
+  #define MQTT_BROKER_HOST    "<your-broker-host>"
+  #define MQTT_BROKER_PORT    8883
+  #define MQTT_USERNAME       "smarthome_esp32"
+  #define MQTT_PASSWORD       "<your-password>"
+#endif
 
 #define HOME_ID             "home1"
 #define DEVICE_NODE_ID      "esp32_main"
@@ -706,7 +709,7 @@ void maintainMqtt() {
 // ---------------------------------------------------------------------------
 // 11. NUT NHAN VAT LY & DOC CAM BIEN
 // ---------------------------------------------------------------------------
-bool buttonPressed(Button& b) {
+bool buttonPressed(struct Button& b) {
   bool r = digitalRead(b.pin);
   if (r != b.lastRead) {
     b.lastRead = r;

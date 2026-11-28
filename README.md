@@ -7,21 +7,21 @@
 ## 1. Giới thiệu Dự án
 
 Hệ thống **Smart Home IoT 2026** là giải pháp quản lý và điều khiển mô hình nhà thông minh vật lý theo thời gian thực, kết hợp giữa:
-- **Mobile App (React Native + Expo SDK 54)**: Giao diện điều khiển thiết bị, theo dõi cảm biến, cảnh báo khói/chuyển động, lịch sử hoạt động và chuyển đổi chế độ `Manual` / `Auto`.
-- **Backend REST API & MQTT Bridge (Node.js + Express + TypeScript + MQTT.js)**: Xác thực người dùng qua Firebase Auth, kiểm tra phân quyền, gửi lệnh điều khiển qua HiveMQ Cloud (TLS) và đồng bộ trạng thái thực tế (`reportedState`), dữ liệu cảm biến, cảnh báo vào Firebase Realtime Database + FCM.
-- **Cloud (Firebase + HiveMQ Cloud)**: Lưu trữ trạng thái thời gian thực, phân quyền truy cập, thông báo đẩy và truyền thông điệp MQTT bảo mật qua TLS.
-- **Firmware (ESP32 DevKit CP2102 30 chân)**: Đọc cảm biến (`DHT22`, `PIR HC-SR501`, `MQ-2`), điều khiển cơ cấu chấp hành (`LED`, `Quạt DC 5V qua MOSFET`, `Servo SG90`, `Buzzer`), hỗ trợ nút nhấn vật lý và vận hành an toàn cả khi mất kết nối mạng.
+- **Mobile & Web App (React Native + Expo SDK 54 + TypeScript)**: Giao diện điều khiển thiết bị 1 chạm, theo dõi cảm biến trực quan, cảnh báo khói/lửa thời gian thực, lịch sử hoạt động và chuyển đổi chế độ `MANUAL` / `AUTO` bảo vệ bằng mã PIN.
+- **Backend REST API, Swagger UI & MQTT Bridge (Node.js + Express + TypeScript + MQTT.js)**: Triển khai trên Render Cloud kèm tài liệu OpenAPI 3.1 (`/docs`), xác thực Firebase Auth, kiểm tra phân quyền, gửi lệnh qua EMQX Cloud (TLS `:8883`) và đồng bộ trạng thái `reportedState`, cảm biến, cảnh báo vào Firebase Realtime Database + FCM Android.
+- **MQTT Broker (EMQX Cloud Serverless & Eclipse Mosquitto Lab 2)**: Xác thực 3 tài khoản độc lập (`smarthome_backend`, `smarthome_esp32`, `smarthome_mobile`), phân quyền Topic ACL tối thiểu và mã hóa TLS (`:8883` / WSS `:8084`).
+- **Firmware ESP32 (DevKit V1 30 chân & Wokwi Simulator v2.0.0)**: Đọc cảm biến (`DHT22`, `PIR HC-SR501`, `MQ-2`, `Flame`, `MC-38`), hiển thị màn hình `OLED SSD1306`, điều khiển cơ cấu chấp hành (`LED`, `Quạt DC`, `Servo SG90`, `Buzzer`), lưu cấu hình Flash NVS và vận hành an toàn ngay cả khi mất mạng.
 
 ---
 
 ## 2. Kiến trúc Tổng quan
 
 1. **Luồng điều khiển**:
-   `Mobile App` → `Node.js REST API (Verify Firebase ID Token + Zod)` → `HiveMQ Cloud (MQTT over TLS, QoS 1)` → `ESP32` → `LED / Quạt / Cửa Servo`
+   `Mobile / Web App` → `Node.js REST API (Verify Firebase ID Token + Zod)` / `EMQX WSS (:8084)` → `EMQX Cloud (MQTT TLS :8883, QoS 1)` → `ESP32` → `LED / Quạt / Cửa Servo / Tắt còi`
 2. **Luồng phản hồi trạng thái (`reportedState` / ACK)**:
-   `ESP32` → `HiveMQ Cloud` → `Node.js` → `Firebase Realtime Database` → `Mobile App`
+   `ESP32` → `EMQX Cloud` → `Node.js` → `Firebase Realtime Database` → `Mobile / Web App`
 3. **Luồng dữ liệu cảm biến & Cảnh báo**:
-   `DHT22 / PIR / MQ-2` → `ESP32` → `HiveMQ Cloud` → `Node.js` → `Firebase Realtime Database & FCM` → `Mobile App`
+   `DHT22 / PIR / MQ-2 / Flame` → `ESP32` → `EMQX Cloud` → `Node.js` → `Firebase Realtime Database & FCM Android` → `Mobile / Web App`
 
 Chi tiết kiến trúc xem tại [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -29,55 +29,46 @@ Chi tiết kiến trúc xem tại [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## 3. Cấu trúc Thư mục Dự án
 
-> **Lưu ý hiện trạng Workspace**: Hiện tại thư mục gốc đang chứa bản prototype UI ban đầu (`App.js`, `src/`, `package.json`) sử dụng JavaScript và `@react-navigation`. Để không làm hỏng code đang chạy của nhóm, các file gốc được giữ nguyên và cấu trúc chuẩn theo Master Prompt được khởi tạo đầy đủ bên dưới để sẵn sàng tích hợp/di chuyển ở Phase 6.
-
 ```text
 IOT_Home/
-├── mobile/                     # Ứng dụng React Native (Expo SDK 54 + TypeScript + Expo Router)
-│   ├── app/
-│   ├── components/
-│   ├── hooks/
-│   ├── services/
-│   ├── contexts/
-│   ├── types/
-│   ├── assets/
+├── mobile/                     # Ứng dụng chính (Expo SDK 54 + React Native + TypeScript)
+│   ├── app/                    # 10 màn hình chuẩn (Login, Dashboard, Devices, Sensors, Alerts...)
+│   ├── components/             # UI Design System (DeviceCard, RoomCard, Responsive, Skeleton...)
+│   ├── contexts/               # SmartHomeContext đồng bộ REST + MQTT WSS + Firebase Auth
+│   ├── hooks/                  # useSmartHome, useResponsiveLayout
+│   ├── services/               # api.ts, directCloudMqtt.ts, firebaseAuth.ts
+│   ├── styles/                 # neumorphicTheme.ts (WCAG AA tokens)
+│   ├── types/                  # Kiểu dữ liệu TypeScript đồng bộ Backend
 │   └── .env.example
-├── src/                        # [Hiện có] Prototype UI ban đầu (React Navigation + JS)
-├── backend/                    # Node.js + Express + TypeScript + MQTT.js + Firebase Admin
+├── backend/                    # Node.js + Express + TypeScript + Swagger OpenAPI 3.1
 │   ├── src/
 │   │   ├── config/
 │   │   ├── controllers/
+│   │   ├── docs/               # openApiSpec.ts (Swagger UI Dark Theme tại /docs)
 │   │   ├── middleware/
-│   │   ├── routes/
-│   │   ├── services/
 │   │   ├── mqtt/
+│   │   ├── routes/
 │   │   ├── schemas/
+│   │   ├── services/
 │   │   └── types/
 │   ├── simulator/              # Công cụ giả lập ESP32 qua MQTT
-│   ├── tests/                  # Unit & Integration tests (Vitest)
+│   ├── tests/                  # 13 Unit & Integration tests (Vitest)
 │   └── .env.example
+├── broker/                     # Cấu hình MQTT Broker tự dựng (Mosquitto 2.0 + ACL + Docker)
+│   ├── mosquitto.conf
+│   ├── acl.conf
+│   ├── docker-compose.yml
+│   └── README.md
 ├── firmware/
-│   └── esp32-smarthome/        # Code C++ Arduino / PlatformIO cho ESP32 30 chân
-│       └── include/
-│           └── secrets.example.h
+│   ├── esp32-smarthome/        # Firmware C++ cho mạch thật ESP32 30 chân (kèm OLED + NVS)
+│   │   └── include/secrets.example.h
+│   └── wokwi/                  # Mô phỏng Wokwi v2.0.0 (sketch.ino, diagram.json, OLED SSD1306)
+│       └── secrets.example.h
 ├── firebase/
 │   └── database.rules.json     # Firebase Realtime Database Security Rules
 ├── docs/                       # Tài liệu kỹ thuật, phần cứng, kiểm thử và triển khai
-│   ├── ARCHITECTURE.md
-│   ├── WBS.md
-│   ├── BOM.md
-│   ├── MQTT_TOPICS.md
-│   ├── FIREBASE_SETUP.md
-│   ├── HIVEMQ_SETUP.md
-│   ├── WIRING.md
-│   ├── POWER_SUPPLY.md
-│   ├── NOTIFICATIONS.md
-│   ├── TEST_PLAN.md
-│   └── DEPLOYMENT.md
-├── scripts/                    # Script hỗ trợ seed dữ liệu & kiểm thử
+├── scripts/                    # Script hỗ trợ kiểm thử
 ├── README.md
-├── TASKS.md
-├── PROJECT_CONTEXT.md
 └── .gitignore
 ```
 
@@ -99,33 +90,30 @@ IOT_Home/
 
 ---
 
-## 5. Hướng dẫn Chạy Nhanh (Quick Start trên Windows PowerShell)
+## 5. Hướng dẫn Chạy Nhanh & Triển khai Thực tế
 
-### 5.1. Kiểm thử & Chạy Backend + ESP32 Simulator (Phase 3, 4, 5)
+### 5.1. Tài liệu Swagger OpenAPI 3.1 (Render Cloud Live)
+- **Swagger UI:** `https://smarthome-iot-backend.onrender.com/docs`
+- **OpenAPI Spec:** `https://smarthome-iot-backend.onrender.com/openapi.json`
+- **Healthcheck:** `https://smarthome-iot-backend.onrender.com/api/health`
+
+### 5.2. Kiểm thử & Chạy Backend cục bộ (`backend/`)
 ```powershell
-# Cài đặt dependencies cho Backend
 npm --prefix backend install
-
-# Kiểm tra TypeScript strict & chạy bộ Unit + Integration Tests (Vitest)
 npm --prefix backend run typecheck
 npm --prefix backend test
-
-# Khởi động Backend Server (tự động dùng In-Memory Seed Data nếu chưa cấu hình backend/.env)
 npm --prefix backend run dev
-
-# Chạy ESP32 Simulator (Self-test hoặc kết nối HiveMQ TLS khi đã cấu hình backend/.env)
-npm --prefix backend run simulator
-
-# Kiểm tra kết nối HiveMQ Cloud TLS (:8883) và Seed dữ liệu lên Firebase Realtime Database
-npm --prefix backend run test:hivemq
-npm --prefix backend run seed
 ```
 
-### 5.2. Chạy Ứng Dụng Mobile (Expo SDK 54 + TypeScript - 10 Màn hình chuẩn)
+### 5.3. Chạy Ứng dụng Mobile & Web (`mobile/` — Expo SDK 54 + TypeScript)
 ```powershell
-npm start
+cd mobile
+# Copy .env.example -> .env.local và điền cấu hình Firebase + EMQX smarthome_mobile
+npx expo start --web -c      # Chạy giao diện Web tại http://localhost:8081
+npx expo start --tunnel -c   # Kết nối với Android Development Build
 ```
 
-### 5.3. Các Phase Tiếp Theo
-- **Phase 7**: Sketch ESP32 đã có mã. Còn Verify, nạp bo và kiểm tra MQTT trên thiết bị. Xem [hướng dẫn firmware trên Windows](firmware/esp32-smarthome/README.md).
-- **Phase 8 – 12**: Tích hợp điều khiển, cảm biến/cảnh báo, thông báo đẩy 3 trạng thái, kiểm thử toàn diện & báo cáo bảo vệ.
+### 5.4. Firmware ESP32 & Mô phỏng Wokwi (`firmware/`)
+- **Mạch thật ESP32 30 chân:** Xem hướng dẫn tại [firmware/esp32-smarthome/README.md](firmware/esp32-smarthome/README.md) (copy `include/secrets.example.h` → `include/secrets.h`).
+- **Mô phỏng Wokwi v2.0.0 (OLED SSD1306 + đầy đủ cảm biến):** Xem tại [firmware/wokwi/README.md](firmware/wokwi/README.md).
+- **Cấu hình MQTT Broker tự dựng (Mosquitto + ACL):** Xem tại [broker/README.md](broker/README.md).
