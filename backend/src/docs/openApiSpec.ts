@@ -320,7 +320,12 @@ export function renderSwaggerHtml(): string {
       font-size: 14px;
       line-height: 1.6;
     }
-    .swagger-ui .info a { color: #60a5fa; }
+    .swagger-ui .info a {
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .swagger-ui .info a:hover { text-decoration: underline; }
     .swagger-ui .scheme-container {
       background: #171b24;
       box-shadow: none;
@@ -328,22 +333,48 @@ export function renderSwaggerHtml(): string {
       border-bottom: 1px solid #262c3a;
       padding: 18px 0;
     }
+    .swagger-ui .filter-container {
+      background: transparent;
+      margin: 16px 0 4px;
+    }
+    .swagger-ui .filter-container .operation-filter-input {
+      background: #171b24 !important;
+      color: #f8fafc !important;
+      border: 1px solid #334155 !important;
+      border-radius: 10px !important;
+      padding: 10px 14px !important;
+      font-size: 14px;
+    }
+    .swagger-ui .filter-container .operation-filter-input::placeholder {
+      color: #94a3b8;
+    }
     .swagger-ui .servers-title, .swagger-ui label, .swagger-ui .opblock-tag,
     .swagger-ui .opblock-tag small, .swagger-ui h4, .swagger-ui h5,
     .swagger-ui .opblock-description-wrapper p, .swagger-ui .opblock-summary-description,
     .swagger-ui .opblock-summary-path, .swagger-ui .response-col_status,
-    .swagger-ui .response-col_description, .swagger-ui table thead tr th,
-    .swagger-ui table thead tr td, .swagger-ui .parameter__name,
-    .swagger-ui .parameter__type, .swagger-ui .tab li button.tablinks {
+    .swagger-ui .response-col_description, .swagger-ui .response-col_links,
+    .swagger-ui table thead tr th, .swagger-ui table thead tr td,
+    .swagger-ui .parameter__name, .swagger-ui .parameter__type,
+    .swagger-ui .parameter__in, .swagger-ui .tab li button.tablinks,
+    .swagger-ui .responses-inner h4, .swagger-ui .responses-inner h5,
+    .swagger-ui .model-title, .swagger-ui .model, .swagger-ui .prop-type,
+    .swagger-ui .renderedMarkdown p, .swagger-ui .renderedMarkdown code {
       color: #e2e8f0 !important;
     }
-    .swagger-ui .opblock-tag small, .swagger-ui .opblock-summary-description {
+    .swagger-ui .renderedMarkdown code {
+      background: #1e293b;
+      padding: 2px 6px;
+      border-radius: 5px;
+    }
+    .swagger-ui .opblock-tag small, .swagger-ui .opblock-summary-description,
+    .swagger-ui .parameter__in {
       color: #94a3b8 !important;
     }
     .swagger-ui .opblock-tag {
       border-bottom: 1px solid #262c3a;
+      transition: background 0.15s ease;
     }
-    .swagger-ui .opblock-tag:hover { background: rgba(255,255,255,0.03); }
+    .swagger-ui .opblock-tag:hover { background: rgba(255,255,255,0.04); }
     .swagger-ui select, .swagger-ui input[type=text], .swagger-ui input[type=password],
     .swagger-ui textarea {
       background: #0f1218 !important;
@@ -354,40 +385,96 @@ export function renderSwaggerHtml(): string {
     .swagger-ui .btn.authorize {
       color: #4ade80;
       border-color: #22c55e;
-      background: rgba(34, 197, 94, 0.08);
+      background: rgba(34, 197, 94, 0.1);
       border-radius: 8px;
+      transition: background 0.15s ease, transform 0.15s ease;
     }
-    .swagger-ui .btn.authorize svg { fill: #4ade80; }
+    .swagger-ui .btn.authorize:hover {
+      background: rgba(34, 197, 94, 0.18);
+    }
+    .swagger-ui .btn.authorize svg { fill: #4ade80 !important; }
     .swagger-ui .opblock {
       border-radius: 10px;
       box-shadow: none;
       margin: 0 0 12px;
       background: #171b24;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .swagger-ui .opblock .opblock-summary {
+      padding: 6px 10px;
+    }
+    .swagger-ui .opblock .opblock-summary-method {
+      border-radius: 6px;
+      font-weight: 800;
+      min-width: 72px;
     }
     .swagger-ui .opblock.opblock-get {
       border-color: #1d4ed8;
       background: rgba(37, 99, 235, 0.12);
     }
+    .swagger-ui .opblock.opblock-get:hover { background: rgba(37, 99, 235, 0.17); }
     .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2563eb; }
     .swagger-ui .opblock.opblock-post {
       border-color: #15803d;
       background: rgba(22, 163, 74, 0.12);
     }
+    .swagger-ui .opblock.opblock-post:hover { background: rgba(22, 163, 74, 0.17); }
     .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #16a34a; }
     .swagger-ui .opblock.opblock-patch {
       border-color: #0f766e;
       background: rgba(13, 148, 136, 0.14);
     }
+    .swagger-ui .opblock.opblock-patch:hover { background: rgba(13, 148, 136, 0.2); }
     .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #0d9488; }
     .swagger-ui .opblock .opblock-section-header {
       background: #1e2432;
       box-shadow: none;
+      border-top: 1px solid #262c3a;
+      border-bottom: 1px solid #262c3a;
     }
-    .swagger-ui .opblock-body pre.microlight {
+    .swagger-ui .opblock-body pre.microlight,
+    .swagger-ui .highlight-code pre.microlight {
       background: #0b0e14 !important;
       color: #e2e8f0 !important;
       border: 1px solid #262c3a;
       border-radius: 8px;
+    }
+    /* Sửa các nút Copy / Download bị nền trắng chói trên nền tối */
+    .swagger-ui .copy-to-clipboard,
+    .swagger-ui .download-contents {
+      background: #1e293b !important;
+      border: 1px solid #475569 !important;
+      border-radius: 6px !important;
+      color: #e2e8f0 !important;
+    }
+    .swagger-ui .copy-to-clipboard button {
+      background: transparent !important;
+      filter: invert(0.92);
+    }
+    .swagger-ui .copy-to-clipboard:hover,
+    .swagger-ui .download-contents:hover {
+      background: #334155 !important;
+    }
+    /* Sửa icon ổ khóa, mũi tên đóng/mở bị đen chìm trên nền tối */
+    .swagger-ui svg.arrow,
+    .swagger-ui .expand-operation svg,
+    .swagger-ui .opblock-control-arrow svg,
+    .swagger-ui .opblock-tag svg,
+    .swagger-ui .authorization__btn svg,
+    .swagger-ui .model-toggle::after {
+      fill: #cbd5e1 !important;
+      color: #cbd5e1 !important;
+    }
+    .swagger-ui .authorization__btn.locked svg {
+      fill: #4ade80 !important;
+    }
+    .swagger-ui .authorization__btn.unlocked svg {
+      fill: #94a3b8 !important;
+    }
+    .swagger-ui .opblock-control-arrow:hover svg,
+    .swagger-ui .expand-operation:hover svg,
+    .swagger-ui .authorization__btn:hover svg {
+      fill: #ffffff !important;
     }
     .swagger-ui .dialog-ux .modal-ux {
       background: #171b24;
@@ -396,11 +483,28 @@ export function renderSwaggerHtml(): string {
     }
     .swagger-ui .dialog-ux .modal-ux-header { border-bottom: 1px solid #262c3a; }
     .swagger-ui .dialog-ux .modal-ux-header h3, .swagger-ui .dialog-ux .modal-ux-content p,
-    .swagger-ui .dialog-ux .modal-ux-content h4 { color: #f8fafc; }
-    .swagger-ui .btn { border-radius: 8px; color: #f8fafc; border-color: #475569; background: #1e2432; }
+    .swagger-ui .dialog-ux .modal-ux-content h4, .swagger-ui .dialog-ux .modal-ux-content code {
+      color: #f8fafc !important;
+    }
+    .swagger-ui .dialog-ux .modal-ux-header .close-modal svg {
+      fill: #cbd5e1 !important;
+    }
+    .swagger-ui .btn {
+      border-radius: 8px;
+      color: #f8fafc;
+      border-color: #475569;
+      background: #1e2432;
+      transition: background 0.15s ease;
+    }
+    .swagger-ui .btn:hover { background: #334155; }
     .swagger-ui .btn.execute { background: #2563eb; border-color: #2563eb; color: #ffffff; }
-    .swagger-ui svg.arrow { fill: #94a3b8; }
-    .swagger-ui .authorization__btn svg { fill: #94a3b8; }
+    .swagger-ui .btn.execute:hover { background: #1d4ed8; }
+    .swagger-ui .btn.cancel { border-color: #ef4444; color: #fca5a5; }
+    @media (max-width: 640px) {
+      .swagger-ui .wrapper { padding: 0 12px; }
+      .swagger-ui .scheme-container .schemes { flex-direction: column; align-items: stretch; gap: 12px; }
+      .swagger-ui .opblock .opblock-summary-description { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -412,6 +516,7 @@ export function renderSwaggerHtml(): string {
         url: '/openapi.json',
         dom_id: '#swagger-ui',
         deepLinking: true,
+        filter: true,
         persistAuthorization: true,
         docExpansion: 'list',
         presets: [SwaggerUIBundle.presets.apis],
