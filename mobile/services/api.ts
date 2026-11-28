@@ -39,7 +39,7 @@ function resolveDefaultApiBaseUrl(): string {
     // 3. Môi trường gộp chung Web + Backend trên cùng 1 domain Render (HTTPS)
     return window.location.origin;
   }
-  return (envUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  return (envUrl || 'https://smarthome-iot-backend.onrender.com').replace(/\/+$/, '');
 }
 
 const DEFAULT_API_BASE_URL = resolveDefaultApiBaseUrl();

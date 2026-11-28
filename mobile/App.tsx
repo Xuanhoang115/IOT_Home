@@ -25,20 +25,24 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function AndroidPushNotifications({ routeName }: { routeName?: string }) {
-  const { user } = useSmartHome();
+  const { user, apiBaseUrl, backendConnected } = useSmartHome();
   const uid = user?.uid;
   const [openAlerts, setOpenAlerts] = useState(false);
+  const lastRegisteredKeyRef = React.useRef<string | null>(null);
 
+  // Effect 1: Lắng nghe sự kiện người dùng bấm vào thông báo đẩy để mở thẳng màn hình Cảnh báo
   useEffect(() => {
     if (Platform.OS !== 'android' || !uid) return;
 
     let active = true;
     let removeListeners: (() => void) | undefined;
-    async function register() {
+    async function attachNotificationListener() {
       const notifications = await import('expo-notifications');
       if (!active) return;
 
-      function handleResponse(response: Awaited<ReturnType<typeof notifications.getLastNotificationResponseAsync>>) {
+      function handleResponse(
+        response: Awaited<ReturnType<typeof notifications.getLastNotificationResponseAsync>>
+      ) {
         if (response?.notification.request.content.data?.targetScreen === 'Alerts') {
           setOpenAlerts(true);
           void notifications.clearLastNotificationResponseAsync().catch((error) =>
@@ -50,6 +54,26 @@ function AndroidPushNotifications({ routeName }: { routeName?: string }) {
       const responseListener = notifications.addNotificationResponseReceivedListener(handleResponse);
       removeListeners = () => responseListener.remove();
       handleResponse(await notifications.getLastNotificationResponseAsync());
+    }
+
+    void attachNotificationListener().catch((error) => {
+      if (active) console.warn('[FCM] Lỗi gắn listener thông báo:', error);
+    });
+    return () => {
+      active = false;
+      removeListeners?.();
+    };
+  }, [uid]);
+
+  // Effect 2: Đăng ký FCM token lên Backend (tự thử lại khi đổi URL Backend hoặc khi Backend kết nối lại)
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !uid) return;
+    const regKey = `${uid}::${apiBaseUrl}`;
+    if (lastRegisteredKeyRef.current === regKey) return;
+
+    let active = true;
+    async function registerToken() {
+      const notifications = await import('expo-notifications');
       if (!active) return;
 
       await notifications.setNotificationChannelAsync('alerts', {
@@ -66,18 +90,21 @@ function AndroidPushNotifications({ routeName }: { routeName?: string }) {
       if (active && token.type === 'android' && typeof token.data === 'string') {
         const deviceKey = 'android_' + token.data.slice(0, 100).replace(/[^a-zA-Z0-9_-]/g, '_');
         await apiClient.registerPushToken(token.data, 'android', deviceKey);
-        console.info('[FCM] Đã đăng ký thông báo Android.');
+        lastRegisteredKeyRef.current = regKey;
+        console.info('[FCM] Đã đăng ký thông báo Android thành công tới:', apiBaseUrl);
       }
     }
 
-    void register().catch(() => {
-      if (active) console.warn('[FCM] Không thể đăng ký thông báo Android.');
+    void registerToken().catch((error) => {
+      if (active) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[FCM] Không thể đăng ký thông báo Android (${apiBaseUrl}):`, msg);
+      }
     });
     return () => {
       active = false;
-      removeListeners?.();
     };
-  }, [uid]);
+  }, [uid, apiBaseUrl, backendConnected]);
 
   useEffect(() => {
     if (!openAlerts || !uid || !routeName || !navigationRef.isReady()) return;
